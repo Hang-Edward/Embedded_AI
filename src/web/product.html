@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Reality Bridge 视觉语音原型</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <nav class="top-nav">
+      <a href="index.html">控制台 Demo</a>
+      <a class="active" href="product.html">现实桥梁产品</a>
+      <a href="guide.html">开发与硬件指南</a>
+    </nav>
+
+    <section class="product-hero">
+      <div class="hero-copy product-copy">
+        <p class="eyebrow">AI Reality Bridge / 视觉 + 语音 + 投影原型</p>
+        <h1>先做一个能看、能听、能讲解的 AI 现实助手</h1>
+        <p class="subtitle">
+          当前阶段不强行做成眼镜外形，而是用桌面原型先跑通核心能力：
+          第一阶段先用 Windows 电脑运行 C++主程序和网页展示，接入 C270 摄像头、千问 API 与 NUCLEO。
+          等电脑原型机稳定后，再把主程序迁移到 Raspberry Pi，实现脱离电脑运行。
+        </p>
+        <div class="hero-actions">
+          <button id="scanSceneBtn" class="primary">描述当前画面</button>
+          <button id="solveProblemBtn" class="secondary">模拟拍题解题</button>
+          <button id="voiceAskBtn" class="secondary">模拟语音提问</button>
+          <button id="riskSceneBtn" class="danger">模拟风险场景</button>
+        </div>
+      </div>
+
+      <div class="wearable-card">
+        <div class="glasses">
+          <div class="lens left">
+            <span>CAM</span>
+          </div>
+          <div class="bridge"></div>
+          <div class="lens right">
+            <span>HUD</span>
+          </div>
+          <div class="arm left-arm"></div>
+          <div class="arm right-arm"></div>
+        </div>
+        <div class="device-readout">
+          <strong>Prototype Unit</strong>
+          <span id="prototypeState">Standby / 等待画面或语音输入</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="concept-strip">
+      <article class="concept-card main-concept">
+        <img src="../../assets/images/concept-nucleo-prototype.png" alt="AI Reality Bridge Windows 电脑与 NUCLEO 原型机效果图">
+        <div>
+          <h2>第一阶段：Windows 电脑 + NUCLEO 原型机</h2>
+          <p>
+            Windows 电脑负责 C++主程序、摄像头、语音、日志、网页 UI 和千问 API；
+            NUCLEO 负责 OLED、LED、蜂鸣器、按键和震动反馈。这个阶段最适合快速完成 C++大作业主体和硬件闭环。
+          </p>
+        </div>
+      </article>
+
+      <article class="concept-card">
+        <img src="../../assets/images/concept-display-options.png" alt="OLED 投影与近眼显示三种显示方案概念图">
+        <h2>显示方案选择</h2>
+        <p>
+          OLED 屏最简单但展示感弱；小投影或透明亚克力 HUD 更有“智能眼镜对话浮层”的感觉；
+          近眼 micro-OLED 最高级，但采购和光学调试难度明显更高。
+        </p>
+      </article>
+
+      <article class="concept-card">
+        <img src="../../assets/images/concept-cpp-architecture.png" alt="Windows 电脑 C++ 主控与 NUCLEO 硬件反馈系统链路效果图">
+        <h2>第一阶段系统链路</h2>
+        <p>
+          摄像头和麦克风采集输入，Windows 电脑上的 C++程序负责 UI、面向对象任务调度、审计日志和千问 API 调用，
+          NUCLEO 负责按钮、状态灯、蜂鸣器、震动和 OLED 反馈。
+        </p>
+      </article>
+
+      <article class="concept-card">
+        <img src="../../assets/images/concept-standalone-prototype.png" alt="AI Reality Bridge Raspberry Pi 与 NUCLEO 独立运行升级效果图">
+        <h2>第二阶段升级</h2>
+        <p>
+          当 Windows 原型稳定后，再把电脑端 C++主程序迁移到 Raspberry Pi。
+          这样上台展示时可以把 Raspberry Pi 和 NUCLEO 藏进底座里，实现更独立的设备形态。
+        </p>
+      </article>
+    </section>
+
+    <section class="reality-layout">
+      <article class="panel preview-panel">
+        <div class="panel-head">
+          <h2>答辩展示效果图</h2>
+          <span>当前先做 Windows 原型，未来可迁移到 Raspberry Pi</span>
+        </div>
+        <img class="hardware-preview" src="../../assets/images/concept-defense-demo.png" alt="AI Reality Bridge Windows 原型机答辩展示效果图">
+        <p class="note">
+          这是第一阶段更推荐的答辩展示形态：Windows 电脑运行 C++主程序，C270 读取题目或桌面画面，
+          NUCLEO 控制反馈模块，投影/HUD 展示 AI 的画面描述、解题提示和风险确认结果。
+        </p>
+      </article>
+
+      <article class="panel camera-panel">
+        <div class="panel-head">
+          <h2>现实画面输入</h2>
+          <span>USB Camera / OpenCV</span>
+        </div>
+        <div class="camera-view" id="cameraView">
+          <div class="object paper">题目纸</div>
+          <div class="object book">书本</div>
+          <div class="object cup">水杯</div>
+          <div class="object phone">手机</div>
+          <div class="focus-box"></div>
+        </div>
+        <p class="note">真实开发中由 C++ OpenCV 获取摄像头帧，并保存或编码为图片发送给视觉 AI。</p>
+      </article>
+
+      <article class="panel ai-panel">
+        <div class="panel-head">
+          <h2>AI 场景理解结果</h2>
+          <span id="aiStatus">等待识别</span>
+        </div>
+        <div id="aiResult" class="ai-result">
+          点击上方按钮后，系统会模拟千问视觉/Omni API 返回结构化结果。
+        </div>
+        <pre id="jsonResult">{
+  "scene": "waiting",
+  "risk": "unknown"
+}</pre>
+      </article>
+
+      <article class="panel stm-panel">
+        <div class="panel-head">
+          <h2>STM32 反馈端</h2>
+          <span>投影 / OLED / LED / 蜂鸣器 / 震动</span>
+        </div>
+        <div class="stm-device">
+          <div class="oled" id="oledText">等待画面或语音...</div>
+          <div class="feedback-row">
+            <div class="feedback-led" id="ledStatus"></div>
+            <div class="buzzer" id="buzzerStatus">BUZZER</div>
+            <div class="vibration" id="vibrationStatus">VIB</div>
+          </div>
+        </div>
+        <pre id="serialBridge">[serial] waiting...</pre>
+      </article>
+
+      <article class="panel flow-panel">
+        <div class="panel-head">
+          <h2>系统链路</h2>
+          <span>AI 到现实世界的桥梁</span>
+        </div>
+        <div class="flow-steps">
+          <div>按键/语音唤醒</div>
+          <div>C++采集图像与音频</div>
+          <div>千问视觉/Omni API 理解</div>
+          <div>C++解析 JSON 并做安全过滤</div>
+          <div>投影/语音/STM32反馈</div>
+        </div>
+      </article>
+
+      <article class="panel value-panel">
+        <div class="panel-head">
+          <h2>核心能力</h2>
+          <span>先做能演示的闭环</span>
+        </div>
+        <ul class="clean-list">
+          <li>读取画面：识别桌面、实验器材、题目纸和屏幕内容。</li>
+          <li>描述画面：把当前场景转换为一句自然语言说明。</li>
+          <li>辅助解题：拍摄题目后请求视觉模型给步骤化提示。</li>
+          <li>语音输入：用户直接问“这是什么”“这道题怎么做”。</li>
+          <li>投影对话：用小投影或透明板展示回答，比 0.96 寸 OLED 更有表现力。</li>
+        </ul>
+      </article>
+
+      <article class="panel code-panel">
+        <div class="panel-head">
+          <h2>C++伪代码</h2>
+          <span>核心不是眼镜外壳，而是桥接</span>
+        </div>
+        <pre><code>// 中文注释：按键触发后，PC端 C++采集图像
+cv::VideoCapture camera(0);
+cv::Mat frame;
+camera.read(frame);
+cv::imwrite("scene.jpg", frame);
+
+// 中文注释：同时采集语音问题，例如“这道题怎么解？”
+std::string question = audio.captureText();
+
+// 中文注释：调用千问视觉/Omni API 后，解析结构化结果
+if (result.type == "problem_solving") {
+    projector.show(result.answer);
+    serial.write("LED:BLUE;BUZZER:OFF");
+} else if (result.risk == "high") {
+    serial.write("LED:RED;BUZZER:ON;VIB:ON");
+}</code></pre>
+      </article>
+    </section>
+  </main>
+
+  <script src="product.js"></script>
+</body>
+</html>

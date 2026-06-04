@@ -1,0 +1,193 @@
+PAGES: 7
+
+--- PAGE 1 ---
+High-level language programming project--specification 
+1. Objectives
+The goal of this course is to practice the students' capability of problem analysis and
+programming skill. 
+1) To master the thinking of object-oriented program ming, and use idea of object-or iented
+programming to solve practical problems;
+2) To carry out the programming design and coding independently, and use  various ways for
+debugging and correcting the error efficiently;
+3) To write scientific report, and hence have a better understanding of the  knowledge and to
+develop students' ability to express and speculative.
+2. Requirements
+1) Every 6-8 students can be grouped together to do the project.
+2) Each group of students selects one interesting topic which is not  limited to the options  
+provided in this specification. Finally, each group should submit the proposal (appendix 1) 
+with word number not less than 1000, project report (appendix 2) with word number not less 
+than 3000 and source code;
+3) Techniques:
+a) The key features of the object-oriented programming language should be utilized, 
+including class, objects, encapsulation, inheritance, polymorphism, etc. ;
+b) The number of class should not be less than 5;
+c) The number of levels for the inheritance hierarchy should not be less than 2;
+d) The UI is needed for the system;
+e) Random file processing (writing, reading, and updating) is also required in the system;
+f) The lines of source code should not be less than 2000.
+4) The system should be designed and implemented reasonably, efficiently and friendly.
+5) Source code should be clearly commented: comments for class (a detailed description of the 
+properties, behaviors, class inheritance, and derived relationships) ; comment for functions 
+(detailed description of objectives, function parameter, principle steps /algorithms).
+3. Reference topics
+ Dibuix
+Description： Dibuix is a Catalan word which means drawing, so literally, it is a painting 
+application, but can do more than painting. First, as a drawing software, it will still include  
+the basic drawing function components to meet the basic drawing needs of users. Moreover, 
+in order to make the software design novel and innovative, and conform to the characteristics 
+of the AI era, we will provide functions like face recognition (may even include body 
+
+--- PAGE 2 ---
+recognition) so the software can automatically draw a painting. After uploading a picture, 
+the software can recognize the picture intelligently and draw the people inside it with in pixel 
+style.   
+Request： 
+1) Provide a friendly UI for the system; 
+Hints: MFC, QT, C sharp can be used; 
+ 
+ 
+2) Wizard dialog box for files operations 
+3) Normal painting mode: 
+
+--- PAGE 3 ---
+ Basic shapes drawing 
+ Clear canvas 
+ Pen’s demo canvas 
+ Adjust pen’s properties 
+ Visualize shape list 
+ Hide, show and delete shape 
+ Translate shape 
+ Visualize adjust list 
+ Outline shape’s range 
+ Save and open picture 
+4) Pixel art mode 
+ Basic shapes drawing 
+ Clear canvas 
+ Adjust pen’s properties 
+ Visualize shape list 
+ Hide, show and delete shape 
+ Translate shape 
+ Change previous shape’s color 
+ Fill shape 
+ Existing images for directly drag and draw  
+ Grid mode 
+ Gray mode 
+ Fill shape 
+ Save and open picture 
+ Save and open project file 
+ Adjust brightness 
+ Adjust saturation 
+ Actual-size demo canvas 
+ Optional subject 
+1) Bank Account Management System 
+2) Note-taking and Schedule Tool 
+3) Monopoly 
+4) Supermarket Management System 
+5) Household registration information management system 
+6) Personal Financial Management System 
+Or other topics which have similar difficulty. 
+
+--- PAGE 4 ---
+Note: The proposal for the selected topics should be submi tted before the determination of the 
+topics for the project.  
+ 
+4. Evaluation Criteria 
+Full score is 100 points. The details are as the following. 
+1) Source Code------------------------------------------------------------------------------60% 
+ Basic requirements-----------------------------55% 
+ correctness-----------------------------30%  
+Demonstrate the system using  complete and sufficient te st cases; All of the output are 
+correct.  
+ Rationality of design-----------------10%  
+The design of classes and inheritance hierarchy  should be able to solve the key issues 
+of the system.  
+ User Interface ------------------------15% 
+Use Friendly and have nice visual effect.  
+ Additional features for refinement ------------------------------------------------5%  
+2) Demonstration----------------------------------------------------------------------------20%  
+ Expression clarity--------------------------------------------------------------------10% 
+ Performance on answering questions ---------------------------------------------10% 
+3) Final report -------------------------------------------------------------------------------20%  
+Requirements： Refer to the appendix 2. 
+ 
+Requirements: clearly express the design ideas, the technical highlights, the final result and 
+experiences. Demonstrates the program and able to answer the questions  clearly and 
+reasonably.  
+Note: If more than two or above stude nts submit the similar or even same source code and 
+report, after careful verification, the students who copy the files from others will be given zero 
+score. Plagiarism is not permitted! 
+ 
+5. Submission File  
+1) Proposal 
+2) Final report (electronic version)   
+3) Source code and executable programs 
+ 
+
+--- PAGE 5 ---
+Appendix 1: The template for proposal 
+一、Requirement Analysis for System  
+1.1 The Background and Motivation of System 
+1.2 System Objectives 
+二、Program Analysis 
+2.1 Key Issues for System 
+2.2 Duty Assignments 
+The description of duty for every student in the group is listed here. 
+三、Reference 
+ 
+
+--- PAGE 6 ---
+Appendix 2:  the template  of the report 
+ 
+《High-level Language Programming 
+Project》Report 
+ 
+ 
+ 
+ 
+ 
+Project Name:                              
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+School   :                             
+Major    :                             
+Student Name :                             
+Teacher   :                             
+Submission Date:                             
+ 
+
+--- PAGE 7 ---
+1. Requirement Analysis for System  
+1.1 The Background and Motivation of System 
+1.2 System Objectives 
+2. Program Analysis 
+2.1 Key Issues for System 
+2.2 Duty Assignments 
+The description of duty for every student in the group is listed here. 
+3. Technical Routine 
+3.1 Runtime Environment 
+The platforms of software and hardware for the system are described here. 
+3.2 General Design 
+3.3 Detailed Design  
+4. Programming Progress 
+Phases of Mission Period Planned Completion Actual Completion 
+Determining the topic 
+and submit the 
+proposal 
+2021.04.26-2021.05.03 Survey the interesting 
+topics, and writing the 
+proposal. 
+ 
+    
+Note: The progress for each week should be recorded. The project will be started from April 26, 
+2016 and ended at June 7, 2016.  
+5. Testing Report 
+5.1 Function testing 
+5.2 System testing 
+6. Personal Summary 
+Write down your acquisition, suggestions, etc.. 
+7. Reference 

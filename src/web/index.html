@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI + C++ Embedded Control Demo</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <nav class="top-nav">
+      <a class="active" href="index.html">控制台 Demo</a>
+      <a href="product.html">现实桥梁产品</a>
+      <a href="guide.html">开发与硬件指南</a>
+    </nav>
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">C++大作业 Demo / 嵌入式行业痛点</p>
+        <h1>可解释、可确认、可审计的 AI 嵌入式控制台</h1>
+        <p class="subtitle">
+          AI 负责理解自然语言与生成策略，C++ 负责串口通信、实时状态机、安全校验、执行确认和日志审计。
+          这个 Demo 用网页模拟硬件现场，展示最终答辩时可以讲清楚的系统闭环。
+        </p>
+        <div class="hero-actions">
+          <button id="runDemoBtn" class="primary">运行一次智能巡检</button>
+          <button id="emergencyBtn" class="danger">模拟紧急停机</button>
+        </div>
+      </div>
+
+      <div class="device-card" aria-label="设备状态总览">
+        <div class="device-top">
+          <div>
+            <span class="status-dot"></span>
+            <span id="deviceState">设备在线：COM3 / 115200</span>
+          </div>
+          <strong>ESP32-Sensor Hub</strong>
+        </div>
+        <div class="board-visual">
+          <div class="chip">
+            <span>MCU</span>
+            <small>C++ Firmware</small>
+          </div>
+          <div class="pin-row top"></div>
+          <div class="pin-row bottom"></div>
+          <div class="sensor temp"></div>
+          <div class="sensor motor"></div>
+        </div>
+        <div class="signal-bars">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel telemetry-panel">
+        <div class="panel-head">
+          <h2>实时传感器数据</h2>
+          <span id="refreshTime">Refreshed: --:--:--</span>
+        </div>
+        <div class="metrics">
+          <div class="metric">
+            <span>温度</span>
+            <strong id="tempValue">36.8°C</strong>
+            <meter id="tempMeter" min="0" max="100" value="36.8"></meter>
+          </div>
+          <div class="metric">
+            <span>湿度</span>
+            <strong id="humidityValue">42%</strong>
+            <meter id="humidityMeter" min="0" max="100" value="42"></meter>
+          </div>
+          <div class="metric">
+            <span>震动</span>
+            <strong id="vibrationValue">0.18g</strong>
+            <meter id="vibrationMeter" min="0" max="2" value="0.18"></meter>
+          </div>
+          <div class="metric">
+            <span>电机电流</span>
+            <strong id="currentValue">0.72A</strong>
+            <meter id="currentMeter" min="0" max="5" value="0.72"></meter>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel command-panel">
+        <div class="panel-head">
+          <h2>自然语言控制</h2>
+          <span>AI -> 安全计划 -> C++执行</span>
+        </div>
+        <textarea id="commandInput" rows="4">如果温度超过 45°C 就打开风扇，震动超过 1.2g 时降低电机转速并提醒维护。</textarea>
+        <div class="quick-prompts">
+          <button data-prompt="进入节能巡检模式，每 5 秒采样一次，异常时报警。">节能巡检</button>
+          <button data-prompt="模拟仓库温湿度监控，湿度超过 70% 时启动除湿模块。">仓库监控</button>
+          <button data-prompt="电机电流超过 2.5A 时立刻降速，连续 3 次异常后停机。">电机保护</button>
+        </div>
+        <button id="parseBtn" class="primary wide">让 AI 生成可执行控制计划</button>
+      </article>
+
+      <article class="panel plan-panel">
+        <div class="panel-head">
+          <h2>AI 生成的操作计划</h2>
+          <span id="riskBadge" class="badge safe">待分析</span>
+        </div>
+        <ol id="planList" class="plan-list">
+          <li>等待自然语言指令输入。</li>
+        </ol>
+        <button id="approveBtn" class="secondary wide" disabled>确认交给 C++执行层</button>
+      </article>
+
+      <article class="panel serial-panel">
+        <div class="panel-head">
+          <h2>C++ 串口指令队列</h2>
+          <span>确定性执行层</span>
+        </div>
+        <pre id="serialOutput">[serial] waiting for approved plan...</pre>
+      </article>
+
+      <article class="panel insight-panel">
+        <div class="panel-head">
+          <h2>AI 异常解释报告</h2>
+          <span>给老师看的价值点</span>
+        </div>
+        <div id="insightText" class="insight">
+          本系统不是让 AI 直接控制硬件，而是让 AI 生成可读计划，再由 C++进行安全检查、执行和审计。
+        </div>
+      </article>
+
+      <article class="panel code-panel">
+        <div class="panel-head">
+          <h2>C++ 核心接口示意</h2>
+          <span>可扩展到真实硬件</span>
+        </div>
+        <pre><code>// 中文注释：真实项目中由 C++负责串口和安全状态机
+struct SensorFrame {
+    double temperature;
+    double humidity;
+    double vibration;
+    double motorCurrent;
+};
+
+bool SafetyGate::allow(const ControlPlan& plan) {
+    // 中文注释：高风险动作必须先进入人工确认队列
+    return !plan.hasDangerousAction() && plan.matchesDeviceLimit();
+}
+
+serial.write("FAN:ON;MOTOR:SPEED=60;ALARM:WARN");</code></pre>
+      </article>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

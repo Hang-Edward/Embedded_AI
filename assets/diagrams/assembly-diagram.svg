@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7fbff"/>
+      <stop offset="55%" stop-color="#edf7ff"/>
+      <stop offset="100%" stop-color="#eafaf3"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#16a34a"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="16" flood-color="#1f3a60" flood-opacity="0.18"/>
+    </filter>
+    <style>
+      .title { font: 800 42px "Microsoft YaHei", "Segoe UI", sans-serif; fill: #132033; }
+      .sub { font: 500 22px "Microsoft YaHei", "Segoe UI", sans-serif; fill: #607084; }
+      .label { font: 700 24px "Microsoft YaHei", "Segoe UI", sans-serif; fill: #132033; }
+      .small { font: 500 18px "Microsoft YaHei", "Segoe UI", sans-serif; fill: #607084; }
+      .tiny { font: 600 16px "Microsoft YaHei", "Segoe UI", sans-serif; fill: #334155; }
+      .card { fill: rgba(255,255,255,0.9); stroke: #d7e4f2; stroke-width: 2; filter: url(#shadow); }
+      .line-usb { stroke: #2563eb; stroke-width: 8; fill: none; stroke-linecap: round; stroke-dasharray: 18 14; }
+      .line-serial { stroke: #16a34a; stroke-width: 8; fill: none; stroke-linecap: round; }
+      .line-video { stroke: #0ea5e9; stroke-width: 8; fill: none; stroke-linecap: round; }
+      .pin { fill: #facc15; stroke: #92400e; stroke-width: 2; }
+      .note { fill: #fff7ed; stroke: #fed7aa; stroke-width: 2; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1050" fill="url(#bg)"/>
+  <text x="80" y="78" class="title">AI Reality Bridge 第一版组装图</text>
+  <text x="80" y="118" class="sub">核心思路：摄像头/投影/麦克风接电脑，STM32 只做现实反馈，尽量少焊接、少调复杂硬件。</text>
+
+  <!-- PC -->
+  <rect x="560" y="230" width="480" height="300" rx="28" class="card"/>
+  <rect x="610" y="275" width="380" height="205" rx="14" fill="#0b1220"/>
+  <rect x="640" y="305" width="210" height="16" rx="8" fill="#38bdf8"/>
+  <rect x="640" y="340" width="300" height="12" rx="6" fill="#1d4ed8"/>
+  <rect x="640" y="370" width="260" height="12" rx="6" fill="#22c55e"/>
+  <rect x="640" y="400" width="320" height="12" rx="6" fill="#94a3b8"/>
+  <rect x="700" y="530" width="210" height="36" rx="18" fill="#1e293b"/>
+  <text x="660" y="620" class="label">电脑 / C++桥接层</text>
+  <text x="612" y="653" class="small">OpenCV 取画面、调用千问 API、解析 JSON</text>
+
+  <!-- Camera -->
+  <rect x="95" y="230" width="335" height="230" rx="24" class="card"/>
+  <rect x="175" y="290" width="175" height="86" rx="35" fill="#111827"/>
+  <circle cx="263" cy="333" r="34" fill="url(#blue)"/>
+  <circle cx="263" cy="333" r="18" fill="#0b1220"/>
+  <rect x="240" y="376" width="46" height="82" rx="12" fill="#374151"/>
+  <rect x="190" y="448" width="146" height="30" rx="15" fill="#111827"/>
+  <text x="142" y="525" class="label">Logitech C270 摄像头</text>
+  <text x="132" y="558" class="small">USB-A 接电脑；拍题、识别桌面、描述画面</text>
+
+  <!-- Projector -->
+  <rect x="1160" y="230" width="330" height="230" rx="24" class="card"/>
+  <rect x="1240" y="300" width="170" height="86" rx="24" fill="#dbeafe" stroke="#64748b" stroke-width="3"/>
+  <circle cx="1282" cy="343" r="28" fill="url(#blue)"/>
+  <path d="M1305 343 L1478 288 L1478 408 Z" fill="#38bdf8" opacity="0.28"/>
+  <rect x="1390" y="292" width="85" height="116" rx="10" fill="none" stroke="#38bdf8" stroke-width="5"/>
+  <text x="1218" y="525" class="label">小型投影 / 透明亚克力板</text>
+  <text x="1188" y="558" class="small">HDMI 接电脑；显示对话、解题步骤、提示</text>
+
+  <!-- STM32 -->
+  <rect x="555" y="740" width="490" height="230" rx="26" class="card"/>
+  <rect x="670" y="790" width="260" height="110" rx="18" fill="#0f766e" stroke="#075985" stroke-width="5"/>
+  <rect x="735" y="820" width="130" height="52" rx="10" fill="#111827"/>
+  <text x="765" y="855" fill="#9de7ff" font-size="28" font-weight="800" font-family="Segoe UI, Microsoft YaHei">STM32</text>
+  <g>
+    <rect x="640" y="805" width="18" height="18" class="pin"/>
+    <rect x="640" y="836" width="18" height="18" class="pin"/>
+    <rect x="640" y="867" width="18" height="18" class="pin"/>
+    <rect x="942" y="805" width="18" height="18" class="pin"/>
+    <rect x="942" y="836" width="18" height="18" class="pin"/>
+    <rect x="942" y="867" width="18" height="18" class="pin"/>
+  </g>
+  <text x="625" y="930" class="label">STM32 反馈端</text>
+  <text x="590" y="960" class="small">串口接电脑；控制按键、OLED、LED、蜂鸣器、震动</text>
+
+  <!-- Modules -->
+  <rect x="95" y="760" width="155" height="110" rx="20" class="card"/>
+  <circle cx="172" cy="815" r="34" fill="url(#green)"/>
+  <text x="132" y="920" class="label">按键</text>
+  <text x="108" y="948" class="small">触发拍照/提问</text>
+
+  <rect x="295" y="760" width="180" height="110" rx="20" class="card"/>
+  <rect x="333" y="793" width="105" height="48" rx="8" fill="#020617" stroke="#111827" stroke-width="8"/>
+  <text x="345" y="824" fill="#9df7ff" font-size="20" font-weight="800" font-family="Consolas">OLED</text>
+  <text x="338" y="920" class="label">小屏</text>
+  <text x="310" y="948" class="small">保底短提示</text>
+
+  <rect x="1125" y="760" width="155" height="110" rx="20" class="card"/>
+  <circle cx="1202" cy="815" r="26" fill="#22c55e"/>
+  <text x="1176" y="920" class="label">LED</text>
+  <text x="1140" y="948" class="small">蓝/绿/红状态</text>
+
+  <rect x="1325" y="760" width="170" height="110" rx="20" class="card"/>
+  <circle cx="1378" cy="815" r="28" fill="#111827"/>
+  <path d="M1422 790 C1450 815, 1450 815, 1422 840" stroke="#f97316" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <text x="1345" y="920" class="label">蜂鸣/震动</text>
+  <text x="1338" y="948" class="small">风险提醒</text>
+
+  <!-- Lines -->
+  <path d="M430 350 C495 350, 500 350, 560 350" class="line-usb"/>
+  <text x="450" y="318" class="tiny">USB 视频输入</text>
+
+  <path d="M1040 350 C1100 350, 1100 350, 1160 350" class="line-video"/>
+  <text x="1055" y="318" class="tiny">HDMI/屏幕输出</text>
+
+  <path d="M800 660 L800 740" class="line-serial"/>
+  <text x="828" y="710" class="tiny">USB-TTL 串口</text>
+
+  <path d="M250 815 C380 815, 460 830, 555 840" class="line-serial"/>
+  <path d="M475 815 C520 815, 535 815, 555 815" class="line-serial"/>
+  <path d="M1045 820 C1075 820, 1090 815, 1125 815" class="line-serial"/>
+  <path d="M1045 860 C1165 880, 1250 845, 1325 815" class="line-serial"/>
+
+  <!-- Notes -->
+  <rect x="80" y="620" width="420" height="84" rx="18" class="note"/>
+  <text x="108" y="654" class="label">C270 可以直接用</text>
+  <text x="108" y="684" class="small">720p/30fps 足够做第一版；拍题时加补光、固定支架。</text>
+
+  <rect x="1085" y="620" width="430" height="84" rx="18" class="note"/>
+  <text x="1112" y="654" class="label">第一版不做眼镜外壳</text>
+  <text x="1112" y="684" class="small">先用桌面投影/HUD 演示，避免建模和复杂结构件。</text>
+
+  <text x="80" y="1010" class="small">说明：STM32 具体引脚按你最终开发板型号调整；摄像头和投影不要接 STM32，直接接电脑更稳定。</text>
+</svg>
