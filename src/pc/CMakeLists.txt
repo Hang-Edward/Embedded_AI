@@ -8,7 +8,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(embedded_ai_pc_bridge
     src/main.cpp
+    src/App.cpp
+    src/AuditLogStore.cpp
+    src/Console.cpp
     src/HardwareBridge.cpp
+    src/SceneTask.cpp
     src/SerialPort.cpp
 )
 

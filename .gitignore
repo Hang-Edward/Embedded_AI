@@ -13,6 +13,7 @@ src/firmware/**/build/
 logs/
 captures/
 *.log
+audit-log.dat
 scene.jpg
 
 # Dependencies and package managers
