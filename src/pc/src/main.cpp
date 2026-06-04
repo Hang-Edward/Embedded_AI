@@ -51,6 +51,7 @@ int main(int argc, char* argv[]) {
     Console console;
     console.info("Embedded AI Reality Bridge\n");
     console.info("Port: " + options.portName + " @ " + std::to_string(baudRate) + "\n");
+    console.info(std::string("Vision mode: ") + (options.useQwen ? "Qwen API\n" : "Mock local\n"));
 
     SerialPort serial(options.portName, baudRate);
     if (!serial.open()) {

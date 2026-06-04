@@ -25,6 +25,18 @@ cd "D:\VScode Projects\Embedded_AI"
 
 ## Run
 
+推荐使用项目根目录的便捷脚本。脚本只会临时把 MSYS2 UCRT64 的 DLL 路径加入当前进程，不会修改系统环境变量。
+
+```powershell
+.\run-pc.ps1 COM11
+```
+
+使用 Qwen：
+
+```powershell
+.\run-qwen.ps1 COM11
+```
+
 默认连接 `COM11`：
 
 ```powershell
