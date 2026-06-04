@@ -77,7 +77,3 @@ src/firmware/nucleo_pingpong/
 - `COM11 @ 115200` 可读取启动文本。
 - 发送 `PING` 返回 `PONG`。
 - 发送 `LEDON` / `LEDOFF` 可控制板载 LED 并返回确认文本。
-
-## GitHub Notes
-
-仓库会保留源码、网页、文档和素材；编译产物、临时文件、系统缓存不会提交。API Key、token、cookie 等敏感信息不要写入仓库。
