@@ -155,9 +155,6 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         SwapBuffers(g_hDC);
-
-        // 让出 CPU 时间片，降低无谓的忙等（配合 vsync 后帧率稳定在显示器刷新率）
-        Sleep(1);
     }
 
     // ---------- 7. 清理 ----------
