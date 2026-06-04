@@ -1,5 +1,6 @@
 # Build outputs
 /build/
+/build-msys2*/
 src/pc/build/
 src/firmware/**/build/
 *.elf

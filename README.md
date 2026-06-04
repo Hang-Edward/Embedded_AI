@@ -81,6 +81,11 @@ node server.js
 - `src/web/product.html`：AI Reality Bridge 产品原型展示。
 - `src/web/guide.html`：采购清单、硬件方案、开发步骤和答辩路线。
 
+## Hardware Assembly
+
+- `docs/current-nucleo-assembly.md`：当前可组装硬件说明，适用于 `NUCLEO-F446RE + 面包板 + LED + 电阻` 的最小反馈电路。
+- `assets/diagrams/nucleo-led-minimal-wiring.svg`：当前最小接线图。
+
 ## Firmware Test
 
 当前测试固件位于：

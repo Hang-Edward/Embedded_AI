@@ -42,7 +42,7 @@ ProgramOptions parseOptions(int argc, char* argv[]) {
     return options;
 }
 
-} // namespace
+}
 
 int main(int argc, char* argv[]) {
     const ProgramOptions options = parseOptions(argc, argv);
