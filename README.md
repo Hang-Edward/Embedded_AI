@@ -25,7 +25,7 @@ Embedded_AI/
 └─ src/
    ├─ firmware/
    │  └─ nucleo_pingpong/
-   │     ├─ main.c
+   │     ├─ main.cpp
    │     ├─ linker.ld
    │     └─ build/              # ignored
    └─ web/

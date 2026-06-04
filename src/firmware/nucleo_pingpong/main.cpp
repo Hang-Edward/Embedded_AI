@@ -25,18 +25,17 @@
 #define RXNE          (1U << 5)
 #define TXE           (1U << 7)
 
-extern uint32_t _estack;
-extern uint32_t _etext;
-extern uint32_t _sdata;
-extern uint32_t _edata;
-extern uint32_t _sbss;
-extern uint32_t _ebss;
+extern "C" uint32_t _estack;
+extern "C" uint32_t _etext;
+extern "C" uint32_t _sdata;
+extern "C" uint32_t _edata;
+extern "C" uint32_t _sbss;
+extern "C" uint32_t _ebss;
 
-void Reset_Handler(void);
+extern "C" void Reset_Handler(void);
 static void Default_Handler(void);
 
-__attribute__((section(".isr_vector")))
-void (* const vector_table[])(void) = {
+extern "C" void (* const vector_table[])(void) __attribute__((used, section(".isr_vector"))) = {
     (void (*)(void))(&_estack),
     Reset_Handler,
     Default_Handler,
@@ -102,6 +101,94 @@ static int streq(const char *a, const char *b) {
     return *a == '\0' && *b == '\0';
 }
 
+static int starts_with(const char *text, const char *prefix) {
+    while (*prefix) {
+        if (*text++ != *prefix++) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static void copy_text(char *dst, uint32_t dst_size, const char *src) {
+    uint32_t i = 0;
+    if (dst_size == 0U) {
+        return;
+    }
+    while (src[i] && i < dst_size - 1U) {
+        dst[i] = src[i];
+        i++;
+    }
+    dst[i] = '\0';
+}
+
+typedef struct {
+    uint8_t led_on;
+    uint8_t buzzer_on;
+    uint8_t vibration_on;
+    char oled_text[48];
+} DeviceState;
+
+static DeviceState g_state = {
+    0U,
+    0U,
+    0U,
+    "READY"
+};
+
+static void send_status(void) {
+    uart_puts("STATUS LED=");
+    uart_puts(g_state.led_on ? "ON" : "OFF");
+    uart_puts(";BUZZER=");
+    uart_puts(g_state.buzzer_on ? "ON" : "OFF");
+    uart_puts(";VIB=");
+    uart_puts(g_state.vibration_on ? "ON" : "OFF");
+    uart_puts(";OLED=");
+    uart_puts(g_state.oled_text);
+    uart_puts("\r\n");
+}
+
+static void set_led(uint8_t enabled) {
+    g_state.led_on = enabled ? 1U : 0U;
+    if (g_state.led_on) {
+        led_on();
+    } else {
+        led_off();
+    }
+}
+
+static void handle_command(const char *command) {
+    if (streq(command, "PING")) {
+        uart_puts("PONG\r\n");
+        led_pulse();
+    } else if (streq(command, "LED:ON") || streq(command, "LEDON")) {
+        set_led(1U);
+        uart_puts("OK LED ON\r\n");
+    } else if (streq(command, "LED:OFF") || streq(command, "LEDOFF")) {
+        set_led(0U);
+        uart_puts("OK LED OFF\r\n");
+    } else if (streq(command, "BUZZER:ON")) {
+        g_state.buzzer_on = 1U;
+        uart_puts("OK BUZZER ON\r\n");
+    } else if (streq(command, "BUZZER:OFF")) {
+        g_state.buzzer_on = 0U;
+        uart_puts("OK BUZZER OFF\r\n");
+    } else if (streq(command, "VIB:ON")) {
+        g_state.vibration_on = 1U;
+        uart_puts("OK VIB ON\r\n");
+    } else if (streq(command, "VIB:OFF")) {
+        g_state.vibration_on = 0U;
+        uart_puts("OK VIB OFF\r\n");
+    } else if (starts_with(command, "OLED:TEXT=")) {
+        copy_text(g_state.oled_text, sizeof(g_state.oled_text), command + 10);
+        uart_puts("OK OLED TEXT\r\n");
+    } else if (streq(command, "STATUS?")) {
+        send_status();
+    } else {
+        uart_puts("ERR UNKNOWN COMMAND\r\n");
+    }
+}
+
 static void clock_gpio_uart_init(void) {
     /* 中文注释：NUCLEO-F446RE 复位后默认使用 16MHz HSI，这里保持默认时钟以降低复杂度。 */
     RCC_AHB1ENR |= (1U << 0);   /* GPIOA clock */
@@ -130,31 +217,20 @@ static void clock_gpio_uart_init(void) {
 }
 
 static void app_main(void) {
-    char buffer[32];
+    char buffer[80];
     uint32_t len = 0;
 
     clock_gpio_uart_init();
     led_pulse();
-    uart_puts("\r\nNUCLEO-F446RE PING/PONG READY\r\n");
-    uart_puts("Send PING and press Enter.\r\n");
+    uart_puts("\r\nNUCLEO-F446RE AI BRIDGE READY\r\n");
+    uart_puts("Commands: PING, LED:ON, LED:OFF, BUZZER:ON, VIB:ON, OLED:TEXT=..., STATUS?\r\n");
 
     while (1) {
         char c = uart_getc_blocking();
         if (c == '\r' || c == '\n') {
             if (len > 0) {
                 buffer[len] = '\0';
-                if (streq(buffer, "PING")) {
-                    uart_puts("PONG\r\n");
-                    led_pulse();
-                } else if (streq(buffer, "LEDON")) {
-                    led_on();
-                    uart_puts("OK LED ON\r\n");
-                } else if (streq(buffer, "LEDOFF")) {
-                    led_off();
-                    uart_puts("OK LED OFF\r\n");
-                } else {
-                    uart_puts("ERR UNKNOWN COMMAND\r\n");
-                }
+                handle_command(buffer);
                 len = 0;
             }
         } else if (len < sizeof(buffer) - 1U) {
@@ -166,7 +242,7 @@ static void app_main(void) {
     }
 }
 
-void Reset_Handler(void) {
+extern "C" void Reset_Handler(void) {
     uint32_t *src = &_etext;
     uint32_t *dst = &_sdata;
     while (dst < &_edata) {

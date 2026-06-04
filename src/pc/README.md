@@ -1,6 +1,6 @@
 # PC C++ Application
 
-这里放置 PC 端 C++ 主程序。当前版本是最小串口桥接测试，用来验证 Windows C++ 程序可以和 NUCLEO-F446RE 通信。
+这里放置 PC 端 C++ 主程序。当前版本是统一串口协议桥接测试，用来验证 Windows C++ 程序可以和 NUCLEO-F446RE 通信。
 
 ## Build
 
@@ -24,11 +24,19 @@ cmake --build build
 .\build\embedded_ai_pc_bridge.exe COM12
 ```
 
-## Current Test Commands
+## Current Protocol
 
 - `PING` -> `PONG`
-- `LEDON` -> `OK LED ON`
-- `LEDOFF` -> `OK LED OFF`
+- `LED:ON` -> `OK LED ON`
+- `LED:OFF` -> `OK LED OFF`
+- `BUZZER:ON` -> `OK BUZZER ON`
+- `BUZZER:OFF` -> `OK BUZZER OFF`
+- `VIB:ON` -> `OK VIB ON`
+- `VIB:OFF` -> `OK VIB OFF`
+- `OLED:TEXT=...` -> `OK OLED TEXT`
+- `STATUS?` -> `STATUS LED=...;BUZZER=...;VIB=...;OLED=...`
+
+`HardwareBridge` 类会封装这些串口命令，后续 OpenCV、UI、API 模块不需要直接拼接底层协议字符串。
 
 后续计划职责：
 

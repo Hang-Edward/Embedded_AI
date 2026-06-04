@@ -1,7 +1,5 @@
 #include "SerialPort.h"
 
-#include <chrono>
-#include <thread>
 #include <vector>
 
 SerialPort::SerialPort(std::string portName, DWORD baudRate)
@@ -69,6 +67,10 @@ bool SerialPort::open() {
 
 void SerialPort::close() {
     if (isOpen()) {
+        CancelIo(handle_);
+        PurgeComm(handle_, PURGE_RXCLEAR | PURGE_TXCLEAR);
+        EscapeCommFunction(handle_, CLRDTR);
+        EscapeCommFunction(handle_, CLRRTS);
         CloseHandle(handle_);
         handle_ = INVALID_HANDLE_VALUE;
     }
@@ -95,18 +97,18 @@ std::string SerialPort::readAvailable(DWORD waitMs) {
     }
 
     // 中文注释：短时间轮询串口缓冲区，避免程序卡死在一次阻塞读取上。
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(waitMs);
+    const ULONGLONG deadline = GetTickCount64() + waitMs;
     std::string result;
     std::vector<char> buffer(256);
 
-    while (std::chrono::steady_clock::now() < deadline) {
+    while (GetTickCount64() < deadline) {
         DWORD bytesRead = 0;
         if (ReadFile(handle_, buffer.data(), static_cast<DWORD>(buffer.size()), &bytesRead, nullptr) && bytesRead > 0) {
             result.append(buffer.data(), buffer.data() + bytesRead);
             continue;
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        Sleep(30);
     }
 
     return result;
