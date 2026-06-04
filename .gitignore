@@ -28,5 +28,7 @@ Thumbs.db
 # Secrets
 .env
 .env.*
+config/qwen-vision.ini
+config/qwen-vision.key
 *.key
 *.pem

@@ -8,7 +8,14 @@ enum class TaskRisk {
     High
 };
 
+enum class TaskType {
+    SceneDescription,
+    ProblemSolving,
+    RiskAlert
+};
+
 struct SceneTask {
+    TaskType type = TaskType::SceneDescription;
     std::string title;
     std::string prompt;
     std::string aiSummary;
@@ -16,3 +23,4 @@ struct SceneTask {
 };
 
 std::string taskRiskToText(TaskRisk risk);
+std::string taskTypeToText(TaskType type);

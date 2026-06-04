@@ -1,7 +1,13 @@
 #include "App.h"
 #include "AuditLogStore.h"
 #include "Console.h"
+#include "CurlHttpClient.h"
 #include "HardwareBridge.h"
+#include "MockAiVisionService.h"
+#include "OpenCvCameraService.h"
+#include "PrototypeDeviceSet.h"
+#include "QwenVisionConfig.h"
+#include "QwenVisionService.h"
 #include "SerialPort.h"
 
 #include <cstdlib>
@@ -11,7 +17,10 @@ namespace {
 
 struct ProgramOptions {
     std::string portName = "COM11";
+    std::string qwenConfigPath = "config/qwen-vision.ini";
+    int cameraIndex = -1;
     bool demoMode = false;
+    bool useQwen = false;
 };
 
 ProgramOptions parseOptions(int argc, char* argv[]) {
@@ -20,6 +29,12 @@ ProgramOptions parseOptions(int argc, char* argv[]) {
         const std::string value = argv[i];
         if (value == "--demo") {
             options.demoMode = true;
+        } else if (value == "--qwen") {
+            options.useQwen = true;
+        } else if (value == "--qwen-config" && i + 1 < argc) {
+            options.qwenConfigPath = argv[++i];
+        } else if (value == "--camera" && i + 1 < argc) {
+            options.cameraIndex = std::stoi(argv[++i]);
         } else {
             options.portName = value;
         }
@@ -45,8 +60,16 @@ int main(int argc, char* argv[]) {
     }
 
     HardwareBridge bridge(serial);
+    PrototypeDeviceSet devices(bridge);
+    OpenCvCameraService camera(options.cameraIndex);
+    MockAiVisionService aiVision;
+    CurlHttpClient httpClient;
+    QwenVisionConfigLoader configLoader;
+    QwenVisionConfig qwenConfig = configLoader.load(options.qwenConfigPath);
+    QwenVisionService qwenVision(qwenConfig, httpClient);
+    AiVisionService& selectedVision = options.useQwen ? static_cast<AiVisionService&>(qwenVision) : static_cast<AiVisionService&>(aiVision);
     AuditLogStore auditLog("audit-log.dat");
-    App app(console, bridge, auditLog);
+    App app(console, bridge, devices, camera, selectedVision, auditLog);
     const int exitCode = options.demoMode ? app.runDemo() : app.runInteractive();
 
     serial.close();

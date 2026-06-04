@@ -51,7 +51,7 @@ AuditLogEntry AuditLogStore::appendSceneTask(const SceneTask& task) {
     AuditLogEntry entry;
     entry.id = nextId();
     entry.timestamp = currentTimestamp();
-    entry.action = "SCENE_TASK";
+    entry.action = taskTypeToText(task.type);
     entry.detail = task.title + " | " + task.aiSummary;
     entry.risk = taskRiskToText(task.risk);
     entry.status = AuditStatus::Pending;
@@ -120,7 +120,7 @@ bool AuditLogStore::updateStatus(uint32_t id, AuditStatus status) {
         return false;
     }
 
-    // 中文注释：这里是课程要求中的随机文件更新，直接 seek 到指定记录覆盖状态字段。
+    // 中文注释：这是课程要求中的随机文件更新，直接 seek 到指定记录覆盖状态字段。
     record.status = static_cast<uint32_t>(status);
     file.seekp(offset, std::ios::beg);
     file.write(reinterpret_cast<const char*>(&record), sizeof(record));
