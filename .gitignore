@@ -1,4 +1,5 @@
 # Build outputs
+src/pc/build/
 src/firmware/**/build/
 *.elf
 *.bin
