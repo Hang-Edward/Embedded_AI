@@ -1,11 +1,24 @@
 #include "HardwareBridge.h"
 
 #include <algorithm>
+#include <cctype>
 
 namespace {
 
 bool contains(const std::string& haystack, const std::string& needle) {
     return haystack.find(needle) != std::string::npos;
+}
+
+std::string toUpperAscii(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::toupper(c));
+    });
+    return value;
+}
+
+bool statusShowsLed(const std::string& status, bool enabled) {
+    const std::string normalized = toUpperAscii(status);
+    return contains(normalized, enabled ? "LED=ON" : "LED=OFF");
 }
 
 std::string sanitizeOledText(std::string text) {
@@ -29,7 +42,12 @@ bool HardwareBridge::ping() {
 }
 
 bool HardwareBridge::setLed(bool enabled) {
-    return sendAndExpect(enabled ? "LED:ON" : "LED:OFF", enabled ? "OK LED ON" : "OK LED OFF", 800);
+    if (sendAndExpect(enabled ? "LED:ON" : "LED:OFF", enabled ? "OK LED ON" : "OK LED OFF", 800)) {
+        return true;
+    }
+
+    // 中文注释：如果串口回复格式不同或混入启动信息，用状态回读确认真实 LED 状态。
+    return statusShowsLed(readStatus(), enabled);
 }
 
 bool HardwareBridge::setBuzzer(bool enabled) {

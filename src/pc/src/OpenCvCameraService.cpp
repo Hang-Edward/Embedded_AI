@@ -4,6 +4,22 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/videoio.hpp>
 
+namespace {
+
+cv::VideoCapture openCamera(int cameraIndex) {
+#if defined(_WIN32)
+    cv::VideoCapture camera(cameraIndex, cv::CAP_DSHOW);
+#else
+    cv::VideoCapture camera(cameraIndex, cv::CAP_V4L2);
+#endif
+    if (!camera.isOpened()) {
+        camera.open(cameraIndex, cv::CAP_ANY);
+    }
+    return camera;
+}
+
+} // namespace
+
 OpenCvCameraService::OpenCvCameraService(int preferredCameraIndex)
     : preferredCameraIndex_(preferredCameraIndex) {
 }
@@ -58,7 +74,7 @@ bool OpenCvCameraService::tryReadFrame(int cameraIndex, const std::string& outpu
         std::filesystem::create_directories(parentPath);
     }
 
-    cv::VideoCapture camera(cameraIndex, cv::CAP_DSHOW);
+    cv::VideoCapture camera = openCamera(cameraIndex);
     if (!camera.isOpened()) {
         result.message = "Camera index " + std::to_string(cameraIndex) + " cannot be opened.";
         return false;
