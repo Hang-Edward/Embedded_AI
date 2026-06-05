@@ -10,13 +10,18 @@
 #include "QwenVisionService.h"
 #include "SerialPort.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <string>
 
 namespace {
 
 struct ProgramOptions {
+#if defined(_WIN32)
     std::string portName = "COM11";
+#else
+    std::string portName = "/dev/ttyACM0";
+#endif
     std::string qwenConfigPath = "config/qwen-vision.ini";
     int cameraIndex = -1;
     bool demoMode = false;
@@ -46,7 +51,7 @@ ProgramOptions parseOptions(int argc, char* argv[]) {
 
 int main(int argc, char* argv[]) {
     const ProgramOptions options = parseOptions(argc, argv);
-    constexpr DWORD baudRate = 115200;
+    constexpr std::uint32_t baudRate = 115200;
 
     Console console;
     console.info("Embedded AI Reality Bridge\n");
@@ -74,5 +79,5 @@ int main(int argc, char* argv[]) {
     const int exitCode = options.demoMode ? app.runDemo() : app.runInteractive();
 
     serial.close();
-    ExitProcess(static_cast<UINT>(exitCode));
+    return exitCode;
 }

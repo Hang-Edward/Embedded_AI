@@ -2,6 +2,7 @@
 
 #include "SerialPort.h"
 
+#include <cstdint>
 #include <string>
 
 class HardwareBridge {
@@ -16,8 +17,8 @@ public:
     std::string readStatus();
 
 private:
-    bool sendAndExpect(const std::string& command, const std::string& expectedText, DWORD waitMs);
-    std::string sendAndRead(const std::string& command, DWORD waitMs);
+    bool sendAndExpect(const std::string& command, const std::string& expectedText, std::uint32_t waitMs);
+    std::string sendAndRead(const std::string& command, std::uint32_t waitMs);
 
     SerialPort& serial_;
 };

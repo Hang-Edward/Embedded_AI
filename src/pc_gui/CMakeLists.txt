@@ -11,7 +11,7 @@ find_package(CURL REQUIRED)
 
 set(IMGUI_DIR third_party/imgui)
 
-# Dear ImGui 核心 + 后端
+# 中文注释：Dear ImGui 核心 + Win32/OpenGL3 后端。
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -21,7 +21,7 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-# 复用的 PC 后端源文件（排除 Console.cpp / App.cpp / main.cpp）
+# 中文注释：复用 PC 后端源文件，排除 Console.cpp / App.cpp / main.cpp。
 set(BACKEND_SRC ../pc/src)
 set(BACKEND_SOURCES
     ${BACKEND_SRC}/SerialPort.cpp
@@ -44,7 +44,7 @@ set(BACKEND_SOURCES
     ${BACKEND_SRC}/SceneTask.cpp
 )
 
-# GUI 应用程序源文件
+# 中文注释：GUI 应用程序源文件。
 set(GUI_SOURCES
     src/main.cpp
     src/AppGUI.cpp

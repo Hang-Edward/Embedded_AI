@@ -48,11 +48,11 @@ std::string HardwareBridge::readStatus() {
     return sendAndRead("STATUS?", 1000);
 }
 
-bool HardwareBridge::sendAndExpect(const std::string& command, const std::string& expectedText, DWORD waitMs) {
+bool HardwareBridge::sendAndExpect(const std::string& command, const std::string& expectedText, std::uint32_t waitMs) {
     return contains(sendAndRead(command, waitMs), expectedText);
 }
 
-std::string HardwareBridge::sendAndRead(const std::string& command, DWORD waitMs) {
+std::string HardwareBridge::sendAndRead(const std::string& command, std::uint32_t waitMs) {
     if (!serial_.writeLine(command)) {
         return {};
     }
