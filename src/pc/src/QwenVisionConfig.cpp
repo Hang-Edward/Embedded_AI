@@ -38,15 +38,12 @@ std::string QwenVisionConfigLoader::readEnv(const std::string& name) {
         return {};
     }
 
-    char* value = nullptr;
-    size_t length = 0;
-    if (_dupenv_s(&value, &length, name.c_str()) != 0 || value == nullptr) {
+    const char* value = std::getenv(name.c_str());
+    if (value == nullptr) {
         return {};
     }
 
-    std::string result(value, length > 0U ? length - 1U : 0U);
-    free(value);
-    return result;
+    return trimWhitespace(value);
 }
 
 std::string QwenVisionConfigLoader::readSecretFile(const std::string& filePath) {
