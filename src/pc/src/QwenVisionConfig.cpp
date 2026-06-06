@@ -21,6 +21,7 @@ QwenVisionConfig QwenVisionConfigLoader::load(const std::string& configFilePath)
     if (file.load(configFilePath)) {
         config.baseUrl = trimTrailingSlash(file.getString("base_url", config.baseUrl));
         config.model = file.getString("model", config.model);
+        config.asrModel = file.getString("asr_model", config.asrModel);
         config.apiKeyFilePath = file.getString("api_key_file", config.apiKeyFilePath);
         config.apiKeyEnvName = file.getString("api_key_env", config.apiKeyEnvName);
         config.enabled = file.getString("enabled", "false") == "true";

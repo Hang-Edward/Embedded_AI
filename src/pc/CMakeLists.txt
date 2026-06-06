@@ -25,8 +25,10 @@ add_executable(embedded_ai_pc_bridge
     src/OutputDevice.cpp
     src/PrototypeDeviceSet.cpp
     src/QwenResponseParser.cpp
+    src/QwenAsrService.cpp
     src/QwenVisionConfig.cpp
     src/QwenVisionService.cpp
+    src/ShellAudioRecorder.cpp
     src/Console.cpp
     src/HardwareBridge.cpp
     src/SceneTask.cpp

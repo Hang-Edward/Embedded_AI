@@ -45,11 +45,17 @@ QwenVisionService::QwenVisionService(QwenVisionConfig config, HttpClient& httpCl
 }
 
 VisionAnalysisResult QwenVisionService::analyzeImage(const std::string& imagePath, TaskType intent) {
+    return analyzeImageWithPrompt(imagePath, intent, promptFor(intent));
+}
+
+VisionAnalysisResult QwenVisionService::analyzeImageWithPrompt(const std::string& imagePath,
+    TaskType intent,
+    const std::string& userPrompt) {
     VisionAnalysisResult result;
     result.taskType = intent;
     result.risk = defaultRiskFor(intent);
     result.title = titleFor(intent);
-    result.prompt = promptFor(intent);
+    result.prompt = userPrompt;
     result.sourceImagePath = imagePath;
 
     if (!config_.enabled) {
@@ -70,7 +76,7 @@ VisionAnalysisResult QwenVisionService::analyzeImage(const std::string& imagePat
         return result;
     }
 
-    const std::string requestBody = buildRequestBody(imageDataUrl, intent);
+    const std::string requestBody = buildRequestBodyWithPrompt(imageDataUrl, intent, userPrompt);
     const std::map<std::string, std::string> headers {
         {"Authorization", "Bearer " + config_.apiKey},
     };
@@ -117,6 +123,13 @@ VisionAnalysisResult QwenVisionService::parseResponse(const std::string& respons
 }
 
 std::string QwenVisionService::buildRequestBody(const std::string& imageUrlOrDataUrl, TaskType intent) const {
+    return buildRequestBodyWithPrompt(imageUrlOrDataUrl, intent, promptFor(intent));
+}
+
+std::string QwenVisionService::buildRequestBodyWithPrompt(const std::string& imageUrlOrDataUrl,
+    TaskType intent,
+    const std::string& prompt) const {
+    (void)intent;
     std::ostringstream body;
     body << "{";
     body << "\"model\":\"" << jsonEscape(config_.model) << "\",";
@@ -124,7 +137,7 @@ std::string QwenVisionService::buildRequestBody(const std::string& imageUrlOrDat
     body << "\"role\":\"user\",";
     body << "\"content\":[";
     body << "{\"type\":\"image_url\",\"image_url\":{\"url\":\"" << jsonEscape(imageUrlOrDataUrl) << "\"}},";
-    body << "{\"type\":\"text\",\"text\":\"" << jsonEscape(promptFor(intent)) << "\"}";
+    body << "{\"type\":\"text\",\"text\":\"" << jsonEscape(prompt) << "\"}";
     body << "]";
     body << "}]";
     body << "}";

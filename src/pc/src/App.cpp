@@ -8,8 +8,17 @@ App::App(Console& console,
     PrototypeDeviceSet& devices,
     CameraService& camera,
     AiVisionService& aiVision,
+    AudioRecorder& audioRecorder,
+    QwenAsrService& asrService,
     AuditLogStore& auditLog)
-    : console_(console), hardware_(hardware), devices_(devices), camera_(camera), aiVision_(aiVision), auditLog_(auditLog) {
+    : console_(console),
+      hardware_(hardware),
+      devices_(devices),
+      camera_(camera),
+      aiVision_(aiVision),
+      audioRecorder_(audioRecorder),
+      asrService_(asrService),
+      auditLog_(auditLog) {
 }
 
 int App::runInteractive() {
@@ -41,6 +50,9 @@ int App::runInteractive() {
             break;
         case 8:
             analyzeCameraFrameMenu();
+            break;
+        case 9:
+            analyzeVoiceCommand();
             break;
         case 0:
             return EXIT_SUCCESS;
@@ -82,6 +94,7 @@ void App::printMenu() const {
     console_.info("6. Update audit log status\n");
     console_.info("7. Capture camera frame\n");
     console_.info("8. Capture and analyze current frame\n");
+    console_.info("9. Voice command with current camera frame\n");
     console_.info("0. Exit\n");
 }
 
@@ -202,6 +215,97 @@ uint32_t App::analyzeCurrentFrame(TaskType intent) {
     console_.info("Type=" + taskTypeToText(task.type) + ", Risk=" + taskRiskToText(task.risk) + "\n");
     console_.info(task.aiSummary + "\n");
     return entry.id;
+}
+
+uint32_t App::analyzeVoiceCommand() {
+    console_.info("Recording voice command for 4 seconds. Please speak now...\n");
+    const AudioRecordResult audio = audioRecorder_.recordWav("captures/voice-command.wav", 4);
+    if (!audio.success) {
+        auditLog_.appendHardwareAction("VOICE_RECORD", "FAILED: " + audio.message);
+        console_.error("Voice recording failed: " + audio.message + "\n");
+        return 0;
+    }
+
+    auditLog_.appendHardwareAction("VOICE_RECORD", audio.filePath);
+    console_.info("Audio recorded: " + audio.filePath + "\n");
+    console_.info("Recognizing speech with Qwen ASR...\n");
+
+    const SpeechRecognitionResult speech = asrService_.transcribeWav(audio.filePath);
+    if (!speech.success) {
+        auditLog_.appendHardwareAction("VOICE_ASR", "FAILED: " + speech.message);
+        console_.error("Speech recognition failed: " + speech.message + "\n");
+        return 0;
+    }
+
+    auditLog_.appendHardwareAction("VOICE_ASR", speech.transcript);
+    console_.info("Recognized command: " + speech.transcript + "\n");
+
+    const TaskType intent = inferTaskTypeFromSpeech(speech.transcript);
+    const CaptureResult capture = captureCameraFrame();
+    if (!capture.success) {
+        return 0;
+    }
+
+    const std::string prompt = buildVoiceVisionPrompt(speech.transcript, intent);
+    const VisionAnalysisResult analysis = aiVision_.analyzeImageWithPrompt(capture.filePath, intent, prompt);
+    if (!analysis.success) {
+        auditLog_.appendHardwareAction("VOICE_VISION_ANALYZE", "FAILED: " + analysis.message);
+        devices_.displayMessage("AI FAIL");
+        console_.error("Voice vision analysis failed: " + analysis.message + "\n");
+        return 0;
+    }
+
+    const SceneTask task = createTaskFromVision(analysis);
+    applyTaskFeedback(task);
+
+    const AuditLogEntry entry = auditLog_.appendSceneTask(task);
+    console_.info("Voice vision analysis recorded. ID=" + std::to_string(entry.id) + "\n");
+    console_.info("Image=" + analysis.sourceImagePath + "\n");
+    console_.info("Type=" + taskTypeToText(task.type) + ", Risk=" + taskRiskToText(task.risk) + "\n");
+    console_.info(task.aiSummary + "\n");
+    return entry.id;
+}
+
+TaskType App::inferTaskTypeFromSpeech(const std::string& transcript) const {
+    if (transcript.find("解") != std::string::npos
+        || transcript.find("题") != std::string::npos
+        || transcript.find("答案") != std::string::npos
+        || transcript.find("solve") != std::string::npos
+        || transcript.find("problem") != std::string::npos) {
+        return TaskType::ProblemSolving;
+    }
+
+    if (transcript.find("风险") != std::string::npos
+        || transcript.find("危险") != std::string::npos
+        || transcript.find("安全") != std::string::npos
+        || transcript.find("电路") != std::string::npos
+        || transcript.find("risk") != std::string::npos
+        || transcript.find("safe") != std::string::npos) {
+        return TaskType::RiskAlert;
+    }
+
+    return TaskType::SceneDescription;
+}
+
+std::string App::buildVoiceVisionPrompt(const std::string& transcript, TaskType intent) const {
+    std::string taskHint;
+    switch (intent) {
+    case TaskType::SceneDescription:
+        taskHint = "用户大概率想让你描述当前画面。";
+        break;
+    case TaskType::ProblemSolving:
+        taskHint = "用户大概率想让你读取并讲解画面中的题目。请给出步骤化提示，不要只给最终答案。";
+        break;
+    case TaskType::RiskAlert:
+        taskHint = "用户大概率想让你检查画面中的硬件或环境风险。请重点关注电源、地线、短路、松动线材和安全隐患。";
+        break;
+    }
+
+    return "你是一个运行在嵌入式 AI 原型上的视觉助手。用户刚才通过麦克风说：\""
+        + transcript
+        + "\"。"
+        + taskHint
+        + "请结合图片内容，用中文直接回答用户。回答要适合课堂演示，清晰、简洁、可操作。";
 }
 
 SceneTask App::createMockTask(TaskType type) const {

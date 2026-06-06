@@ -6,9 +6,11 @@
 #include "MockAiVisionService.h"
 #include "OpenCvCameraService.h"
 #include "PrototypeDeviceSet.h"
+#include "QwenAsrService.h"
 #include "QwenVisionConfig.h"
 #include "QwenVisionService.h"
 #include "SerialPort.h"
+#include "ShellAudioRecorder.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -68,14 +70,16 @@ int main(int argc, char* argv[]) {
     HardwareBridge bridge(serial);
     PrototypeDeviceSet devices(bridge);
     OpenCvCameraService camera(options.cameraIndex);
+    ShellAudioRecorder audioRecorder;
     MockAiVisionService aiVision;
     CurlHttpClient httpClient;
     QwenVisionConfigLoader configLoader;
     QwenVisionConfig qwenConfig = configLoader.load(options.qwenConfigPath);
+    QwenAsrService qwenAsr(qwenConfig, httpClient);
     QwenVisionService qwenVision(qwenConfig, httpClient);
     AiVisionService& selectedVision = options.useQwen ? static_cast<AiVisionService&>(qwenVision) : static_cast<AiVisionService&>(aiVision);
     AuditLogStore auditLog("audit-log.dat");
-    App app(console, bridge, devices, camera, selectedVision, auditLog);
+    App app(console, bridge, devices, camera, selectedVision, audioRecorder, qwenAsr, auditLog);
     const int exitCode = options.demoMode ? app.runDemo() : app.runInteractive();
 
     serial.close();

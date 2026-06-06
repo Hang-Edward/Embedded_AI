@@ -12,8 +12,12 @@ public:
     QwenVisionService(QwenVisionConfig config, HttpClient& httpClient);
 
     VisionAnalysisResult analyzeImage(const std::string& imagePath, TaskType intent) override;
+    VisionAnalysisResult analyzeImageWithPrompt(const std::string& imagePath,
+        TaskType intent,
+        const std::string& userPrompt) override;
     VisionAnalysisResult parseResponse(const std::string& responseJson, const std::string& imagePath, TaskType intent) const;
     std::string buildRequestBody(const std::string& imageUrlOrDataUrl, TaskType intent) const;
+    std::string buildRequestBodyWithPrompt(const std::string& imageUrlOrDataUrl, TaskType intent, const std::string& prompt) const;
 
 private:
     std::string promptFor(TaskType intent) const;
