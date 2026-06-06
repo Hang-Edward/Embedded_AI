@@ -28,7 +28,7 @@ struct ProgramOptions {
     int cameraIndex = -1;
     bool demoMode = false;
     bool useQwen = false;
-    bool buttonMode = false;
+    bool buttonMode = true;
 };
 
 ProgramOptions parseOptions(int argc, char* argv[]) {
@@ -37,6 +37,8 @@ ProgramOptions parseOptions(int argc, char* argv[]) {
         const std::string value = argv[i];
         if (value == "--demo") {
             options.demoMode = true;
+        } else if (value == "--menu") {
+            options.buttonMode = false;
         } else if (value == "--button") {
             options.buttonMode = true;
         } else if (value == "--qwen") {
@@ -85,10 +87,10 @@ int main(int argc, char* argv[]) {
     AuditLogStore auditLog("audit-log.dat");
     App app(console, bridge, devices, camera, selectedVision, audioRecorder, qwenAsr, auditLog);
     int exitCode = EXIT_SUCCESS;
-    if (options.buttonMode) {
-        exitCode = app.runButtonMode();
-    } else if (options.demoMode) {
+    if (options.demoMode) {
         exitCode = app.runDemo();
+    } else if (options.buttonMode) {
+        exitCode = app.runButtonMode();
     } else {
         exitCode = app.runInteractive();
     }

@@ -1,7 +1,28 @@
 #include "App.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <sstream>
+
+namespace {
+
+std::string trimAsciiWhitespace(std::string value) {
+    while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) {
+        value.pop_back();
+    }
+    while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) {
+        value.erase(value.begin());
+    }
+    return value;
+}
+
+bool hasUsefulSpeechText(const std::string& transcript) {
+    const std::string trimmed = trimAsciiWhitespace(transcript);
+    return trimmed.size() >= 2U;
+}
+
+} // namespace
 
 App::App(Console& console,
     HardwareBridge& hardware,
@@ -87,6 +108,7 @@ int App::runDemo() {
 int App::runButtonMode() {
     console_.info("\nButton voice assistant mode\n");
     console_.info("Press the NUCLEO blue button to start voice input.\n");
+    console_.info("If speech is empty or ASR fails, the system will describe the current scene by default.\n");
     console_.info("Use Ctrl+C to stop this program.\n");
     hardware_.readEvents(500);
 
@@ -233,36 +255,46 @@ uint32_t App::analyzeCurrentFrame(TaskType intent) {
 }
 
 uint32_t App::analyzeVoiceCommand() {
+    std::string transcript;
+    bool useSpeechPrompt = false;
+
     console_.info("Recording voice command for 4 seconds. Please speak now...\n");
     const AudioRecordResult audio = audioRecorder_.recordWav("captures/voice-command.wav", 4);
     if (!audio.success) {
         auditLog_.appendHardwareAction("VOICE_RECORD", "FAILED: " + audio.message);
         console_.error("Voice recording failed: " + audio.message + "\n");
-        return 0;
+        console_.info("Fallback: describing current scene without voice command.\n");
+    } else {
+        auditLog_.appendHardwareAction("VOICE_RECORD", audio.filePath);
+        console_.info("Audio recorded: " + audio.filePath + "\n");
+        console_.info("Recognizing speech with Qwen ASR...\n");
+
+        const SpeechRecognitionResult speech = asrService_.transcribeWav(audio.filePath);
+        if (!speech.success) {
+            auditLog_.appendHardwareAction("VOICE_ASR", "FAILED: " + speech.message);
+            console_.error("Speech recognition failed: " + speech.message + "\n");
+            console_.info("Fallback: describing current scene without voice command.\n");
+        } else {
+            transcript = trimAsciiWhitespace(speech.transcript);
+            auditLog_.appendHardwareAction("VOICE_ASR", transcript.empty() ? "(empty transcript)" : transcript);
+            console_.info("Recognized command: " + (transcript.empty() ? "(empty)" : transcript) + "\n");
+            useSpeechPrompt = hasUsefulSpeechText(transcript);
+            if (!useSpeechPrompt) {
+                console_.info("Fallback: voice command is empty or too short, describing current scene.\n");
+            }
+        }
     }
 
-    auditLog_.appendHardwareAction("VOICE_RECORD", audio.filePath);
-    console_.info("Audio recorded: " + audio.filePath + "\n");
-    console_.info("Recognizing speech with Qwen ASR...\n");
-
-    const SpeechRecognitionResult speech = asrService_.transcribeWav(audio.filePath);
-    if (!speech.success) {
-        auditLog_.appendHardwareAction("VOICE_ASR", "FAILED: " + speech.message);
-        console_.error("Speech recognition failed: " + speech.message + "\n");
-        return 0;
-    }
-
-    auditLog_.appendHardwareAction("VOICE_ASR", speech.transcript);
-    console_.info("Recognized command: " + speech.transcript + "\n");
-
-    const TaskType intent = inferTaskTypeFromSpeech(speech.transcript);
+    const TaskType intent = useSpeechPrompt ? inferTaskTypeFromSpeech(transcript) : TaskType::SceneDescription;
     const CaptureResult capture = captureCameraFrame();
     if (!capture.success) {
         return 0;
     }
 
-    const std::string prompt = buildVoiceVisionPrompt(speech.transcript, intent);
-    const VisionAnalysisResult analysis = aiVision_.analyzeImageWithPrompt(capture.filePath, intent, prompt);
+    const VisionAnalysisResult analysis = useSpeechPrompt
+        ? aiVision_.analyzeImageWithPrompt(capture.filePath, intent, buildVoiceVisionPrompt(transcript, intent))
+        : aiVision_.analyzeImage(capture.filePath, TaskType::SceneDescription);
+
     if (!analysis.success) {
         auditLog_.appendHardwareAction("VOICE_VISION_ANALYZE", "FAILED: " + analysis.message);
         devices_.displayMessage("AI FAIL");

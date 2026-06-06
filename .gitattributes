@@ -8,3 +8,6 @@ assets/** linguist-generated
 # Course documents are documentation, not implementation.
 docs/** linguist-documentation
 *.md linguist-documentation
+
+# Linux scripts must keep LF line endings on Raspberry Pi.
+scripts/*.sh text eol=lf
