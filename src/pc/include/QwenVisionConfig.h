@@ -6,6 +6,7 @@ struct QwenVisionConfig {
     std::string baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
     std::string model = "qwen3-vl-8b-instruct";
     std::string asrModel = "qwen3-asr-flash";
+    std::string audioDevice = "default";
     std::string apiKeyFilePath = "config/qwen-vision.key";
     std::string apiKeyEnvName = "EMBEDDED_AI_QWEN_KEY";
     std::string apiKey;

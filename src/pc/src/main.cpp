@@ -70,11 +70,11 @@ int main(int argc, char* argv[]) {
     HardwareBridge bridge(serial);
     PrototypeDeviceSet devices(bridge);
     OpenCvCameraService camera(options.cameraIndex);
-    ShellAudioRecorder audioRecorder;
     MockAiVisionService aiVision;
     CurlHttpClient httpClient;
     QwenVisionConfigLoader configLoader;
     QwenVisionConfig qwenConfig = configLoader.load(options.qwenConfigPath);
+    ShellAudioRecorder audioRecorder(qwenConfig.audioDevice);
     QwenAsrService qwenAsr(qwenConfig, httpClient);
     QwenVisionService qwenVision(qwenConfig, httpClient);
     AiVisionService& selectedVision = options.useQwen ? static_cast<AiVisionService&>(qwenVision) : static_cast<AiVisionService&>(aiVision);

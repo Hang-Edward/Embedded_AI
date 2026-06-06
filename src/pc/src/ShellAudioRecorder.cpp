@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <sstream>
+#include <utility>
 
 namespace {
 
@@ -21,6 +22,10 @@ std::string quoteForShell(const std::string& value) {
 
 } // namespace
 
+ShellAudioRecorder::ShellAudioRecorder(std::string audioDevice)
+    : audioDevice_(std::move(audioDevice)) {
+}
+
 AudioRecordResult ShellAudioRecorder::recordWav(const std::string& outputPath, int seconds) {
     AudioRecordResult result;
     result.filePath = outputPath;
@@ -35,12 +40,13 @@ AudioRecordResult ShellAudioRecorder::recordWav(const std::string& outputPath, i
     return result;
 #else
     std::ostringstream command;
-    command << "arecord -q -f S16_LE -r 16000 -c 1 -d "
+    command << "arecord -q -D " << quoteForShell(audioDevice_)
+            << " -f S16_LE -r 16000 -c 1 -d "
             << seconds << " " << quoteForShell(outputPath);
 
     const int code = std::system(command.str().c_str());
     if (code != 0) {
-        result.message = "arecord failed. Check Logitech C270 microphone with: arecord -l";
+        result.message = "arecord failed on device " + audioDevice_ + ". Check Logitech C270 microphone with: arecord -l";
         return result;
     }
 
