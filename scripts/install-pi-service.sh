@@ -38,12 +38,43 @@ set -euo pipefail
 cd "${PROJECT_DIR}"
 mkdir -p logs captures
 
-PORT="\${EMBEDDED_AI_PORT:-/dev/ttyACM0}"
 LOG_FILE="${LOG_DIR}/embedded-ai.log"
+
+find_serial_port() {
+    if [[ -n "\${EMBEDDED_AI_PORT:-}" ]]; then
+        if [[ -e "\${EMBEDDED_AI_PORT}" ]]; then
+            echo "\${EMBEDDED_AI_PORT}"
+            return 0
+        fi
+        echo "Configured EMBEDDED_AI_PORT does not exist: \${EMBEDDED_AI_PORT}" >> "\${LOG_FILE}"
+    fi
+
+    local by_id
+    by_id="\$(find /dev/serial/by-id -maxdepth 1 -type l 2>/dev/null | grep -Ei 'stlink|st-link|stmicro|nucleo' | head -n 1 || true)"
+    if [[ -n "\${by_id}" && -e "\${by_id}" ]]; then
+        readlink -f "\${by_id}"
+        return 0
+    fi
+
+    local acm
+    acm="\$(find /dev -maxdepth 1 -name 'ttyACM*' 2>/dev/null | sort | head -n 1 || true)"
+    if [[ -n "\${acm}" && -e "\${acm}" ]]; then
+        echo "\${acm}"
+        return 0
+    fi
+
+    return 1
+}
 
 echo "==================================================" >> "\${LOG_FILE}"
 echo "Embedded AI service starting at \$(date --iso-8601=seconds)" >> "\${LOG_FILE}"
 echo "Project: ${PROJECT_DIR}" >> "\${LOG_FILE}"
+
+if ! PORT="\$(find_serial_port)"; then
+    echo "ERROR: no NUCLEO serial port found. Checked EMBEDDED_AI_PORT, /dev/serial/by-id, and /dev/ttyACM*." >> "\${LOG_FILE}"
+    exit 1
+fi
+
 echo "Port: \${PORT}" >> "\${LOG_FILE}"
 
 exec "${EXECUTABLE}" "\${PORT}" --qwen >> "\${LOG_FILE}" 2>&1

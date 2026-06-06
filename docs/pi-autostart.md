@@ -139,20 +139,26 @@ bash scripts/install-pi-service.sh
 ls /dev/ttyACM*
 ```
 
-默认串口是：
+服务脚本会自动寻找串口，优先级如下：
 
 ```text
-/dev/ttyACM0
+1. EMBEDDED_AI_PORT 环境变量
+2. /dev/serial/by-id 中包含 STLink/STMicro/NUCLEO 的设备
+3. /dev/ttyACM* 中排序最靠前的设备
 ```
 
-如果实际是 `/dev/ttyACM1`，可以临时这样启动服务：
+如果自动识别失败，可以临时指定端口：
 
 ```bash
 systemctl --user stop embedded-ai.service
 EMBEDDED_AI_PORT=/dev/ttyACM1 bash scripts/run-pi-button-assistant.sh
 ```
 
-后续可以把 `EMBEDDED_AI_PORT` 写入服务环境变量。
+如果临时指定可以运行，说明只是设备名变化。重新运行安装脚本会生成带自动识别逻辑的新启动脚本：
+
+```bash
+bash scripts/install-pi-service.sh
+```
 
 ### 6.3 校园网掉线
 
