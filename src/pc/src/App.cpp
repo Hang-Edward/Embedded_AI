@@ -84,6 +84,21 @@ int App::runDemo() {
     return EXIT_SUCCESS;
 }
 
+int App::runButtonMode() {
+    console_.info("\nButton voice assistant mode\n");
+    console_.info("Press the NUCLEO blue button to start voice input.\n");
+    console_.info("Use Ctrl+C to stop this program.\n");
+    hardware_.readEvents(500);
+
+    while (true) {
+        if (waitForButtonEvent()) {
+            console_.info("\nButton event received. Starting voice command flow.\n");
+            analyzeVoiceCommand();
+            console_.info("\nReady. Press the NUCLEO blue button again for the next command.\n");
+        }
+    }
+}
+
 void App::printMenu() const {
     console_.info("\n");
     console_.info("1. Test hardware connection\n");
@@ -264,6 +279,11 @@ uint32_t App::analyzeVoiceCommand() {
     console_.info("Type=" + taskTypeToText(task.type) + ", Risk=" + taskRiskToText(task.risk) + "\n");
     console_.info(task.aiSummary + "\n");
     return entry.id;
+}
+
+bool App::waitForButtonEvent() {
+    const std::string events = hardware_.readEvents(500);
+    return events.find("EVENT BUTTON PRESSED") != std::string::npos;
 }
 
 TaskType App::inferTaskTypeFromSpeech(const std::string& transcript) const {

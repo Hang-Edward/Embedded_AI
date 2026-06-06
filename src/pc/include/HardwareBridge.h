@@ -15,6 +15,7 @@ public:
     bool setVibration(bool enabled);
     bool showOledText(const std::string& text);
     std::string readStatus();
+    std::string readEvents(std::uint32_t waitMs);
 
 private:
     bool sendAndExpect(const std::string& command, const std::string& expectedText, std::uint32_t waitMs);

@@ -22,6 +22,7 @@ public:
 
     int runInteractive();
     int runDemo();
+    int runButtonMode();
 
 private:
     void printMenu() const;
@@ -33,6 +34,7 @@ private:
     void analyzeCameraFrameMenu();
     uint32_t analyzeCurrentFrame(TaskType intent);
     uint32_t analyzeVoiceCommand();
+    bool waitForButtonEvent();
     TaskType inferTaskTypeFromSpeech(const std::string& transcript) const;
     std::string buildVoiceVisionPrompt(const std::string& transcript, TaskType intent) const;
     SceneTask createMockTask(TaskType type) const;

@@ -28,6 +28,7 @@ struct ProgramOptions {
     int cameraIndex = -1;
     bool demoMode = false;
     bool useQwen = false;
+    bool buttonMode = false;
 };
 
 ProgramOptions parseOptions(int argc, char* argv[]) {
@@ -36,6 +37,8 @@ ProgramOptions parseOptions(int argc, char* argv[]) {
         const std::string value = argv[i];
         if (value == "--demo") {
             options.demoMode = true;
+        } else if (value == "--button") {
+            options.buttonMode = true;
         } else if (value == "--qwen") {
             options.useQwen = true;
         } else if (value == "--qwen-config" && i + 1 < argc) {
@@ -59,6 +62,7 @@ int main(int argc, char* argv[]) {
     console.info("Embedded AI Reality Bridge\n");
     console.info("Port: " + options.portName + " @ " + std::to_string(baudRate) + "\n");
     console.info(std::string("Vision mode: ") + (options.useQwen ? "Qwen API\n" : "Mock local\n"));
+    console.info(std::string("Run mode: ") + (options.buttonMode ? "Button voice assistant\n" : "Interactive console\n"));
 
     SerialPort serial(options.portName, baudRate);
     if (!serial.open()) {
@@ -80,7 +84,14 @@ int main(int argc, char* argv[]) {
     AiVisionService& selectedVision = options.useQwen ? static_cast<AiVisionService&>(qwenVision) : static_cast<AiVisionService&>(aiVision);
     AuditLogStore auditLog("audit-log.dat");
     App app(console, bridge, devices, camera, selectedVision, audioRecorder, qwenAsr, auditLog);
-    const int exitCode = options.demoMode ? app.runDemo() : app.runInteractive();
+    int exitCode = EXIT_SUCCESS;
+    if (options.buttonMode) {
+        exitCode = app.runButtonMode();
+    } else if (options.demoMode) {
+        exitCode = app.runDemo();
+    } else {
+        exitCode = app.runInteractive();
+    }
 
     serial.close();
     return exitCode;

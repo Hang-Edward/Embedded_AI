@@ -66,6 +66,10 @@ std::string HardwareBridge::readStatus() {
     return sendAndRead("STATUS?", 1000);
 }
 
+std::string HardwareBridge::readEvents(std::uint32_t waitMs) {
+    return serial_.readAvailable(waitMs);
+}
+
 bool HardwareBridge::sendAndExpect(const std::string& command, const std::string& expectedText, std::uint32_t waitMs) {
     return contains(sendAndRead(command, waitMs), expectedText);
 }

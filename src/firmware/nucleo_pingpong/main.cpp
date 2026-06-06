@@ -4,6 +4,7 @@
 
 #define RCC_BASE      0x40023800UL
 #define GPIOA_BASE    0x40020000UL
+#define GPIOC_BASE    0x40020800UL
 #define USART2_BASE   0x40004400UL
 
 #define RCC_AHB1ENR   REG32(RCC_BASE + 0x30)
@@ -16,12 +17,17 @@
 #define GPIOA_ODR     REG32(GPIOA_BASE + 0x14)
 #define GPIOA_AFRL    REG32(GPIOA_BASE + 0x20)
 
+#define GPIOC_MODER   REG32(GPIOC_BASE + 0x00)
+#define GPIOC_PUPDR   REG32(GPIOC_BASE + 0x0C)
+#define GPIOC_IDR     REG32(GPIOC_BASE + 0x10)
+
 #define USART2_SR     REG32(USART2_BASE + 0x00)
 #define USART2_DR     REG32(USART2_BASE + 0x04)
 #define USART2_BRR    REG32(USART2_BASE + 0x08)
 #define USART2_CR1    REG32(USART2_BASE + 0x0C)
 
 #define LED_PIN       5U
+#define BUTTON_PIN    13U
 #define RXNE          (1U << 5)
 #define TXE           (1U << 7)
 
@@ -86,10 +92,16 @@ static void uart_puts(const char *text) {
     }
 }
 
-static char uart_getc_blocking(void) {
-    while ((USART2_SR & RXNE) == 0) {
+static int uart_try_getc(char *out) {
+    if ((USART2_SR & RXNE) == 0) {
+        return 0;
     }
-    return (char)(USART2_DR & 0xFF);
+    *out = (char)(USART2_DR & 0xFF);
+    return 1;
+}
+
+static int button_pressed(void) {
+    return (GPIOC_IDR & (1U << BUTTON_PIN)) == 0U;
 }
 
 static int streq(const char *a, const char *b) {
@@ -190,13 +202,19 @@ static void handle_command(const char *command) {
 }
 
 static void clock_gpio_uart_init(void) {
-    /* 中文注释：NUCLEO-F446RE 复位后默认使用 16MHz HSI，这里保持默认时钟以降低复杂度。 */
+    /* NUCLEO-F446RE reset default uses 16MHz HSI; keep the clock setup simple. */
     RCC_AHB1ENR |= (1U << 0);   /* GPIOA clock */
+    RCC_AHB1ENR |= (1U << 2);   /* GPIOC clock */
     RCC_APB1ENR |= (1U << 17);  /* USART2 clock */
 
     /* PA5 = board LED LD2, output mode. */
     GPIOA_MODER &= ~(3U << (LED_PIN * 2U));
     GPIOA_MODER |=  (1U << (LED_PIN * 2U));
+
+    /* PC13 = blue user button B1, input with pull-up. Pressed reads low. */
+    GPIOC_MODER &= ~(3U << (BUTTON_PIN * 2U));
+    GPIOC_PUPDR &= ~(3U << (BUTTON_PIN * 2U));
+    GPIOC_PUPDR |=  (1U << (BUTTON_PIN * 2U));
 
     /* PA2 = USART2 TX, PA3 = USART2 RX, alternate function AF7. */
     GPIOA_MODER &= ~((3U << (2U * 2U)) | (3U << (3U * 2U)));
@@ -207,38 +225,64 @@ static void clock_gpio_uart_init(void) {
     GPIOA_PUPDR &= ~((3U << (2U * 2U)) | (3U << (3U * 2U)));
     GPIOA_PUPDR |=  (1U << (3U * 2U)); /* RX pull-up */
 
-    /*
-     * 中文注释：USART2 使用 115200 8N1。
-     * HSI 16MHz, oversampling by 16, BRR ~= 16000000 / 115200 = 139.
-     */
+    /* USART2 uses 115200 8N1. HSI 16MHz, oversampling by 16, BRR ~= 139. */
     USART2_CR1 = 0;
     USART2_BRR = 139U;
     USART2_CR1 = (1U << 13) | (1U << 3) | (1U << 2); /* UE, TE, RE */
 }
 
+static void poll_uart_command(char *buffer, uint32_t *len) {
+    char c = 0;
+    if (!uart_try_getc(&c)) {
+        return;
+    }
+
+    if (c == '\r' || c == '\n') {
+        if (*len > 0U) {
+            buffer[*len] = '\0';
+            handle_command(buffer);
+            *len = 0U;
+        }
+    } else if (*len < 79U) {
+        buffer[(*len)++] = c;
+    } else {
+        *len = 0U;
+        uart_puts("ERR COMMAND TOO LONG\r\n");
+    }
+}
+
+static void poll_button_event(uint8_t *last_button, uint8_t *button_lock) {
+    const uint8_t now_pressed = button_pressed() ? 1U : 0U;
+    if (now_pressed && !(*last_button) && !(*button_lock)) {
+        delay(70000);
+        if (button_pressed()) {
+            uart_puts("EVENT BUTTON PRESSED\r\n");
+            led_pulse();
+            *button_lock = 1U;
+        }
+    }
+
+    if (!now_pressed) {
+        *button_lock = 0U;
+    }
+    *last_button = now_pressed;
+}
+
 static void app_main(void) {
     char buffer[80];
-    uint32_t len = 0;
+    uint32_t len = 0U;
+    uint8_t last_button = 0U;
+    uint8_t button_lock = 0U;
 
     clock_gpio_uart_init();
     led_pulse();
     uart_puts("\r\nNUCLEO-F446RE AI BRIDGE READY\r\n");
     uart_puts("Commands: PING, LED:ON, LED:OFF, BUZZER:ON, VIB:ON, OLED:TEXT=..., STATUS?\r\n");
+    uart_puts("Events: EVENT BUTTON PRESSED\r\n");
 
     while (1) {
-        char c = uart_getc_blocking();
-        if (c == '\r' || c == '\n') {
-            if (len > 0) {
-                buffer[len] = '\0';
-                handle_command(buffer);
-                len = 0;
-            }
-        } else if (len < sizeof(buffer) - 1U) {
-            buffer[len++] = c;
-        } else {
-            len = 0;
-            uart_puts("ERR COMMAND TOO LONG\r\n");
-        }
+        poll_uart_command(buffer, &len);
+        poll_button_event(&last_button, &button_lock);
     }
 }
 
