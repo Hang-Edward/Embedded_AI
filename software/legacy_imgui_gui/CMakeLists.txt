@@ -11,7 +11,6 @@ find_package(CURL REQUIRED)
 
 set(IMGUI_DIR third_party/imgui)
 
-# 中文注释：Dear ImGui 核心 + Win32/OpenGL3 后端。
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
@@ -21,8 +20,7 @@ set(IMGUI_SOURCES
     ${IMGUI_DIR}/backends/imgui_impl_opengl3.cpp
 )
 
-# 中文注释：复用 PC 后端源文件，排除 Console.cpp / App.cpp / main.cpp。
-set(BACKEND_SRC ../pc/src)
+set(BACKEND_SRC ../../hardware/pi_bridge/src)
 set(BACKEND_SOURCES
     ${BACKEND_SRC}/SerialPort.cpp
     ${BACKEND_SRC}/HardwareBridge.cpp
@@ -44,7 +42,6 @@ set(BACKEND_SOURCES
     ${BACKEND_SRC}/SceneTask.cpp
 )
 
-# 中文注释：GUI 应用程序源文件。
 set(GUI_SOURCES
     src/main.cpp
     src/AppGUI.cpp
@@ -60,7 +57,7 @@ target_include_directories(embedded_ai_gui PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/${IMGUI_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/${IMGUI_DIR}/backends
-    ${CMAKE_CURRENT_SOURCE_DIR}/../pc/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../hardware/pi_bridge/include
 )
 
 target_link_libraries(embedded_ai_gui PRIVATE

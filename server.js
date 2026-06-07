@@ -5,6 +5,7 @@ const path = require("path");
 // 中文注释：这个小服务只用于本地预览静态 Demo，不连接真实硬件。
 const root = __dirname;
 const port = Number(process.env.PORT || 8765);
+
 const mimeTypes = {
   ".html": "text/html;charset=utf-8",
   ".css": "text/css;charset=utf-8",
@@ -12,18 +13,16 @@ const mimeTypes = {
   ".md": "text/plain;charset=utf-8",
   ".svg": "image/svg+xml;charset=utf-8",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
   ".pdf": "application/pdf"
 };
 
 const server = http.createServer((request, response) => {
-  let route = decodeURIComponent(request.url.split("?")[0]);
-  if (route === "/") {
-    response.writeHead(302, { Location: "/src/web/index.html" });
-    response.end();
-    return;
-  }
+  const route = decodeURIComponent(request.url.split("?")[0]);
+  const requestedRoute = route === "/" ? "/software/web_preview/index.html" : route;
+  const filePath = path.normalize(path.join(root, requestedRoute));
 
-  const filePath = path.normalize(path.join(root, route));
   if (!filePath.startsWith(root)) {
     response.writeHead(403);
     response.end("forbidden");

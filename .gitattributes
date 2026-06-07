@@ -1,6 +1,7 @@
 # GitHub Linguist settings
 # The web pages are presentation/demo material. Keep repository language stats focused on C++.
-src/web/** linguist-vendored
+software/web_preview/** linguist-vendored
+software/legacy_imgui_gui/third_party/** linguist-vendored
 
 # Generated concept images and diagrams should not dominate repository statistics.
 assets/** linguist-generated

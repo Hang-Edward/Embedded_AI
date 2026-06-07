@@ -1,8 +1,10 @@
 # Build outputs
 /build/
 /build-msys2*/
-src/pc/build/
-src/firmware/**/build/
+/build-qt/
+/dist/
+hardware/pi_bridge/build/
+hardware/firmware/**/build/
 *.elf
 *.bin
 *.hex

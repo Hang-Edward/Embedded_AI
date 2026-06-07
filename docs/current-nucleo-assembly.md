@@ -386,7 +386,7 @@ PC C++ 程序 -> 串口 -> NUCLEO -> 硬件 LED 反馈
 插上 NUCLEO 的 USB 后，运行：
 
 ```powershell
-& "$env:USERPROFILE\scoop\apps\msys2\current\msys2_shell.cmd" -defterm -no-start -ucrt64 -c "cd '/d/VScode Projects/Embedded_AI' && ./build/src/pc/embedded_ai_pc_bridge.exe COM11"
+& "$env:USERPROFILE\scoop\apps\msys2\current\msys2_shell.cmd" -defterm -no-start -ucrt64 -c "cd '/d/VScode Projects/Embedded_AI' && ./build-msys2-console/hardware/pi_bridge/embedded_ai_pc_bridge.exe COM11"
 ```
 
 看到菜单后，输入：

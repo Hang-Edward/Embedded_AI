@@ -2,11 +2,17 @@ cmake_minimum_required(VERSION 3.16)
 
 project(EmbeddedAiRealityBridge LANGUAGES CXX)
 
-# 中文注释：仓库根目录作为 CMake 入口，避免 VS Code/STM32Cube 插件误判子目录项目。
-add_subdirectory(src/pc)
+# Hardware-side Raspberry Pi bridge and NUCLEO-facing console program.
+add_subdirectory(hardware/pi_bridge)
 
-# 中文注释：GUI 版本目前使用 Win32/ImGui 后端，树莓派默认只编译控制台版本。
-option(BUILD_PC_GUI "Build the Windows desktop GUI prototype" ${WIN32})
-if (BUILD_PC_GUI)
-    add_subdirectory(src/pc_gui)
+# Legacy ImGui GUI prototype. Disabled by default unless explicitly requested.
+option(BUILD_LEGACY_IMGUI_GUI "Build the legacy Windows ImGui GUI prototype" OFF)
+if (BUILD_LEGACY_IMGUI_GUI)
+    add_subdirectory(software/legacy_imgui_gui)
+endif()
+
+# New Qt desktop control center. It is skipped automatically when Qt6 is absent.
+option(BUILD_WINDOWS_CONTROL_CENTER "Build the Qt Windows control center" ON)
+if (BUILD_WINDOWS_CONTROL_CENTER)
+    add_subdirectory(software/windows_control_center)
 endif()

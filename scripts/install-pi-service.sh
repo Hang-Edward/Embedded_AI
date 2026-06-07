@@ -7,16 +7,23 @@ SERVICE_DIR="${HOME}/.config/systemd/user"
 SERVICE_FILE="${SERVICE_DIR}/${SERVICE_NAME}"
 LOG_DIR="${PROJECT_DIR}/logs"
 RUN_SCRIPT="${PROJECT_DIR}/scripts/run-pi-button-assistant.sh"
-EXECUTABLE="${PROJECT_DIR}/build-pi/src/pc/embedded_ai_pc_bridge"
+EXECUTABLE=""
+for candidate in \
+    "${PROJECT_DIR}/build-pi/hardware/pi_bridge/embedded_ai_pc_bridge"; do
+    if [[ -x "${candidate}" ]]; then
+        EXECUTABLE="${candidate}"
+        break
+    fi
+done
 CONFIG_FILE="${PROJECT_DIR}/config/qwen-vision.ini"
 KEY_FILE="${PROJECT_DIR}/config/qwen-vision.key"
 
 mkdir -p "${SERVICE_DIR}" "${LOG_DIR}"
 
-if [[ ! -x "${EXECUTABLE}" ]]; then
-    echo "ERROR: executable not found or not executable: ${EXECUTABLE}" >&2
+if [[ -z "${EXECUTABLE}" ]]; then
+    echo "ERROR: embedded_ai_pc_bridge executable not found." >&2
     echo "Run this first:" >&2
-    echo "  cmake -S . -B build-pi -G Ninja -DBUILD_PC_GUI=OFF" >&2
+    echo "  cmake -S . -B build-pi -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF -DBUILD_LEGACY_IMGUI_GUI=OFF" >&2
     echo "  cmake --build build-pi" >&2
     exit 1
 fi
