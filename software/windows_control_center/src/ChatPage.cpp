@@ -7,10 +7,11 @@
 #include <QVBoxLayout>
 
 ChatPage::ChatPage(QWidget* parent)
-    : BasePage("LLM Conversation", "Blue-button voice commands and Raspberry Pi camera frames are rendered as chat turns.", parent) {
+    : BasePage("实时对话", "显示最近一次蓝色按钮触发后的图片、语音指令和 AI 分析结果。", parent) {
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setObjectName("chatScroll");
+
     auto* inner = new QWidget(scroll);
     messages_ = new QVBoxLayout(inner);
     messages_->setContentsMargins(4, 4, 4, 4);
@@ -18,7 +19,7 @@ ChatPage::ChatPage(QWidget* parent)
     messages_->addStretch(1);
     scroll->setWidget(inner);
 
-    triggerButton_ = new QPushButton("Refresh Latest Session", this);
+    triggerButton_ = new QPushButton("刷新最新对话", this);
     triggerButton_->setObjectName("primaryButton");
     QObject::connect(triggerButton_, &QPushButton::clicked, this, [this]() {
         appendDemoConversation();
@@ -32,28 +33,41 @@ ChatPage::ChatPage(QWidget* parent)
 void ChatPage::appendDemoConversation() {
     clearMessages();
     const int insertAt = qMax(0, messages_->count() - 1);
-
     auto* system = new ChatMessageWidget(ChatMessageWidget::Role::System, this);
-    system->setMessage("Waiting for Raspberry Pi",
-        "Connect over SSH to show the latest blue-button voice command, captured frame, and Qwen response here.");
+    system->setMessage("等待树莓派连接",
+        "连接成功后，这里会显示最近一次蓝色按钮触发的图片、流程和 AI 回答。");
     messages_->insertWidget(insertAt, system);
 }
 
-void ChatPage::setLatestSession(const QString& logText, const QString& imagePath) {
+void ChatPage::setLatestSession(const ConnectionState& state) {
     clearMessages();
     const int insertAt = qMax(0, messages_->count() - 1);
 
-    const QString tail = logText.right(1600).trimmed();
+    if (state.recentRecords.isEmpty()) {
+        auto* system = new ChatMessageWidget(ChatMessageWidget::Role::System, this);
+        system->setMessage("暂无成功对话",
+            state.assistantStatusText.isEmpty()
+                ? "暂时没有从树莓派读取到完整的 AI 分析记录。"
+                : state.assistantStatusText,
+            state.localFramePath);
+        messages_->insertWidget(insertAt, system);
+        return;
+    }
+
+    const ConversationRecord& record = state.recentRecords.first();
+    const QString imagePath = record.imagePath.isEmpty() ? state.localFramePath : record.imagePath;
+
     auto* user = new ChatMessageWidget(ChatMessageWidget::Role::User, this);
-    user->setMessage("Raspberry Pi latest capture",
-        "Latest frame fetched from ~/Embedded_AI/captures/latest-frame.jpg.\n\nThe log tail below is the real output from the running assistant service.",
-        imagePath);
+    user->setMessage("用户输入 / 摄像头画面", record.userText, imagePath);
     messages_->insertWidget(insertAt, user);
 
+    auto* flow = new ChatMessageWidget(ChatMessageWidget::Role::System, this);
+    flow->setMessage("执行流程", record.flowText.isEmpty() ? "暂无流程日志。" : record.flowText);
+    messages_->insertWidget(insertAt + 1, flow);
+
     auto* assistant = new ChatMessageWidget(ChatMessageWidget::Role::Assistant, this);
-    assistant->setMessage("embedded-ai.log tail",
-        tail.isEmpty() ? "No embedded-ai.log content returned yet." : tail);
-    messages_->insertWidget(insertAt + 1, assistant);
+    assistant->setMessage("AI 回答 / 分析", record.aiText.isEmpty() ? "当前日志中没有解析到 AI 回答。" : record.aiText);
+    messages_->insertWidget(insertAt + 2, assistant);
 }
 
 void ChatPage::clearMessages() {

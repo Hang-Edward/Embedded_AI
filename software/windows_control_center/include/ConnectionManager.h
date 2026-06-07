@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QProcess>
 #include <QTimer>
+#include <QDateTime>
 #include <functional>
 
 class ConnectionManager : public QObject {
@@ -18,6 +19,8 @@ public:
     void beginAutoConnect();
     void reconnect();
     void refreshNow();
+    void startPiService();
+    void stopPiService();
     void restartPiService();
     void setManualSshCommand(const QString& command);
     const ConnectionState& state() const;
@@ -35,10 +38,18 @@ private:
     void handlePingFinished(int exitCode);
     void handleSshFinished(int exitCode);
     void runHealthChecks();
+    void setPiServiceRunning(bool running);
     QString runSshTextCommand(const QString& remoteCommand, int timeoutMs = 5000) const;
     QByteArray runSshBinaryCommand(const QString& remoteCommand, int timeoutMs = 7000) const;
     void fetchLatestFrame(const QString& remoteSignature);
     void loadRecentFrames();
+    void parseConversationRecords();
+    QString extractLastAnswer(const QString& sessionText) const;
+    QString extractLastUserText(const QString& sessionText) const;
+    QString formatSessionFlow(const QString& sessionText) const;
+    void updateAssistantStatus(bool serviceOk, int buttonEventCount, const QString& latestSession);
+    QString latestSessionText(int* buttonEventCount = nullptr) const;
+    QString extractRecordId(const QString& sessionText) const;
     void trimRecentFrames();
     QString cacheFilePath(const QString& fileName) const;
     QString cacheDirPath() const;
@@ -54,5 +65,7 @@ private:
     QProcess process_;
     ProbeStage stage_ = ProbeStage::None;
     QString lastFrameSignature_;
+    int lastButtonEventCount_ = 0;
+    QDateTime activeFlowSeenAt_;
     StateCallback callback_;
 };

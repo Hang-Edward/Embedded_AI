@@ -258,8 +258,8 @@ uint32_t App::analyzeVoiceCommand() {
     std::string transcript;
     bool useSpeechPrompt = false;
 
-    console_.info("Recording voice command for 4 seconds. Please speak now...\n");
-    const AudioRecordResult audio = audioRecorder_.recordWav("captures/voice-command.wav", 4);
+    console_.info("Recording voice command for 5 seconds. Please speak now...\n");
+    const AudioRecordResult audio = audioRecorder_.recordWav("captures/voice-command.wav", 5);
     if (!audio.success) {
         auditLog_.appendHardwareAction("VOICE_RECORD", "FAILED: " + audio.message);
         console_.error("Voice recording failed: " + audio.message + "\n");

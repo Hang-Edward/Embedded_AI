@@ -23,6 +23,7 @@ add_executable(embedded_ai_control_center WIN32
     src/ConnectionManager.cpp
     src/ConnectionState.cpp
     src/HardwarePage.cpp
+    src/HistoryPage.cpp
     src/LogsPage.cpp
     src/CameraPage.cpp
     src/MainWindow.cpp

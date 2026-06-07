@@ -1,12 +1,28 @@
 #include "CameraPage.h"
 
+#include <QImageReader>
 #include <QLabel>
 #include <QPixmap>
 #include <QVBoxLayout>
 
+namespace {
+QPixmap loadPixmapFromFile(const QString& imagePath, QString* error) {
+    QImageReader reader(imagePath);
+    reader.setAutoTransform(true);
+    const QImage image = reader.read();
+    if (image.isNull()) {
+        if (error) {
+            *error = reader.errorString();
+        }
+        return {};
+    }
+    return QPixmap::fromImage(image);
+}
+}
+
 CameraPage::CameraPage(QWidget* parent)
-    : BasePage("Camera Preview", "Latest Raspberry Pi capture from Logitech C270.", parent) {
-    preview_ = new QLabel("Waiting for SSH image fetch from ~/Embedded_AI/captures/latest-frame.jpg", this);
+    : BasePage("摄像头画面", "显示从树莓派拉取的 Logitech C270 最新抓拍图片。", parent) {
+    preview_ = new QLabel("等待通过 SSH 拉取 ~/Embedded_AI/captures/latest-frame.jpg", this);
     preview_->setObjectName("cameraPreview");
     preview_->setAlignment(Qt::AlignCenter);
     preview_->setWordWrap(true);
@@ -16,17 +32,19 @@ CameraPage::CameraPage(QWidget* parent)
 
 void CameraPage::setImagePath(const QString& imagePath) {
     if (imagePath.isEmpty()) {
-        setStatusText("No latest-frame.jpg has been fetched yet.\nPress the NUCLEO blue button or run one analysis on the Raspberry Pi.");
+        setStatusText("尚未拉取 latest-frame.jpg。\n请按一次 NUCLEO 蓝色按钮，或在树莓派上完成一次分析。");
         return;
     }
 
-    QPixmap pixmap(imagePath);
+    QString error;
+    const QPixmap pixmap = loadPixmapFromFile(imagePath, &error);
     if (pixmap.isNull()) {
-        setStatusText("Fetched image exists, but Qt could not read it:\n" + imagePath);
+        setStatusText("图片已缓存，但 Qt 暂时无法读取：\n" + imagePath + "\n\nQt 错误：" + error);
         return;
     }
 
-    preview_->setPixmap(pixmap.scaled(860, 520, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    preview_->setText(QString());
+    preview_->setPixmap(pixmap.scaled(900, 560, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     preview_->setToolTip(imagePath);
 }
 

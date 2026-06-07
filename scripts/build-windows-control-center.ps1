@@ -58,29 +58,37 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# windeployqt handles Qt plugins, but MSYS2/MinGW runtime and indirect GUI
+# windeployqt handles Qt plugins, but MSYS2/MinGW runtime and plugin-side
 # dependencies still need to sit beside the executable for double-click launch.
-$escapedDistExe = Convert-ToMsysPath $distExe
-$lddOutput = & $msysShell -defterm -no-start -ucrt64 -c "ldd '$escapedDistExe'"
-if ($LASTEXITCODE -ne 0) {
-    throw "ldd dependency scan failed."
-}
-
+# Scan both the main executable and deployed plugin DLLs, otherwise plugins such
+# as imageformats/qjpeg.dll may load but fail at runtime because libjpeg is absent.
+$deployBinaries = @($distExe) + @(Get-ChildItem -LiteralPath $distPath -Recurse -File -Filter *.dll | ForEach-Object { $_.FullName })
 $dllNames = New-Object System.Collections.Generic.HashSet[string]
-foreach ($line in $lddOutput) {
-    if ($line -match "=> /ucrt64/bin/([^ ]+\.dll)") {
-        [void]$dllNames.Add($matches[1])
+
+foreach ($binary in $deployBinaries) {
+    $escapedBinary = Convert-ToMsysPath $binary
+    $lddOutput = & $msysShell -defterm -no-start -ucrt64 -c "ldd '$escapedBinary'"
+    if ($LASTEXITCODE -ne 0) {
+        throw "ldd dependency scan failed for $binary."
+    }
+    foreach ($line in $lddOutput) {
+        if ($line -match "=> /ucrt64/bin/([^ ]+\.dll)") {
+            [void]$dllNames.Add($matches[1])
+        }
     }
 }
 
+$copied = 0
 foreach ($dllName in $dllNames) {
     $source = Join-Path $ucrtBin $dllName
-    if (Test-Path $source) {
+    $target = Join-Path $distPath $dllName
+    if ((Test-Path $source) -and -not (Test-Path $target)) {
         Copy-Item $source $distPath -Force
+        ++$copied
     }
 }
 
-Write-Host "Copied MSYS2 runtime DLLs: $($dllNames.Count)"
+Write-Host "Copied MSYS2 runtime DLLs: $copied newly copied, $($dllNames.Count) required"
 
 Write-Host ""
 Write-Host "Built and deployed:" -ForegroundColor Green

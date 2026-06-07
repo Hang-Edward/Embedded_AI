@@ -41,6 +41,45 @@ QLabel#connectionTitle {
 QLabel#connectionSubtitle, QLabel#pageSubtitle, QLabel#cardDetail {
     color: #93a4bd;
 }
+QLabel#readyText {
+    color: #dbeafe;
+    font-weight: 700;
+}
+QLabel#readyDot {
+    border-radius: 8px;
+    background: #64748b;
+}
+QLabel#readyDot[status="ready"] {
+    background: #22c55e;
+}
+QLabel#readyDot[status="busy"], QLabel#readyDot[status="warning"] {
+    background: #f59e0b;
+}
+QLabel#readyDot[status="error"] {
+    background: #ef4444;
+}
+QLabel#actionBanner {
+    background: #13213a;
+    border: 1px solid #2f4f7a;
+    border-radius: 10px;
+    color: #dbeafe;
+    font-weight: 700;
+    padding: 10px 14px;
+}
+QLabel#actionBanner[status="ready"] {
+    background: #123322;
+    border-color: #22c55e;
+}
+QLabel#actionBanner[status="busy"], QLabel#actionBanner[status="warning"] {
+    background: #352810;
+    border-color: #f59e0b;
+    color: #fff7cc;
+}
+QLabel#actionBanner[status="error"] {
+    background: #3a1518;
+    border-color: #ef4444;
+    color: #fee2e2;
+}
 QLabel#pageTitle {
     font-size: 26px;
     font-weight: 800;
@@ -104,6 +143,21 @@ QTextEdit#logView, QLineEdit, QComboBox {
     border: 1px solid #334155;
     border-radius: 8px;
     padding: 8px;
+}
+QListWidget#recentList {
+    background: #0f172a;
+    color: #dbeafe;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 8px;
+}
+QListWidget#recentList::item {
+    padding: 10px;
+    border-radius: 8px;
+}
+QListWidget#recentList::item:selected {
+    background: #2563eb;
+    color: white;
 }
 QScrollArea#chatScroll {
     border: 0;

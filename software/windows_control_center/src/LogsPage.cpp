@@ -1,11 +1,11 @@
 #include "LogsPage.h"
 
-#include <QTextEdit>
 #include <QTextCursor>
+#include <QTextEdit>
 #include <QVBoxLayout>
 
 LogsPage::LogsPage(QWidget* parent)
-    : BasePage("Event Logs", "Live tail from ~/Embedded_AI/logs/embedded-ai.log over SSH.", parent) {
+    : BasePage("原始日志", "通过 SSH 读取 ~/Embedded_AI/logs/embedded-ai.log 的尾部内容。", parent) {
     logView_ = new QTextEdit(this);
     logView_->setObjectName("logView");
     logView_->setReadOnly(true);
@@ -15,11 +15,11 @@ LogsPage::LogsPage(QWidget* parent)
 
 void LogsPage::setDemoLog() {
     logView_->setPlainText(
-        "[waiting] Connect to Raspberry Pi to load embedded-ai.log\n"
-        "[hint] Press Reconnect after the Pi is online and SSH key login is ready.\n");
+        "[等待] 连接树莓派后会加载 embedded-ai.log\n"
+        "[提示] 树莓派在线且 SSH key 登录正常后，点击重新连接。\n");
 }
 
 void LogsPage::setLogText(const QString& text) {
-    logView_->setPlainText(text.trimmed().isEmpty() ? "No log output returned from Raspberry Pi." : text);
+    logView_->setPlainText(text.trimmed().isEmpty() ? "树莓派没有返回日志内容。" : text);
     logView_->moveCursor(QTextCursor::End);
 }

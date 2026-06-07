@@ -11,6 +11,7 @@
 class CameraPage;
 class ChatPage;
 class HardwarePage;
+class HistoryPage;
 class QLabel;
 class LogsPage;
 class QPushButton;
@@ -43,6 +44,9 @@ private:
     QLabel* connectionTitle_ = nullptr;
     QLabel* connectionSubtitle_ = nullptr;
     QLabel* lanWarning_ = nullptr;
+    QLabel* readyDot_ = nullptr;
+    QLabel* readyText_ = nullptr;
+    QLabel* actionBanner_ = nullptr;
     QStackedWidget* stack_ = nullptr;
     QMap<QString, QPushButton*> navButtons_;
     QPushButton* watchButton_ = nullptr;
@@ -51,6 +55,7 @@ private:
 
     ChatPage* chatPage_ = nullptr;
     HardwarePage* hardwarePage_ = nullptr;
+    HistoryPage* historyPage_ = nullptr;
     CameraPage* cameraPage_ = nullptr;
     LogsPage* logsPage_ = nullptr;
     SettingsPage* settingsPage_ = nullptr;
