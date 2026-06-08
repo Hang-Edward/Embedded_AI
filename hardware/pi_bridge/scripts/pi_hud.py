@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Raspberry Pi GPIO/TFT HUD for the Embedded AI prototype.
 
-Pins use BCM numbering:
-- LED module: G=GPIO17, Y=GPIO27, R=GPIO22, GND=GND
+BCM pins:
+- Traffic light: G=GPIO17, Y=GPIO27, R=GPIO22, GND=GND
 - ST7735 TFT: SPI0 MOSI/SCLK/CE0 plus RES=GPIO25, DC=GPIO24, BL=GPIO18
 """
 
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
-import textwrap
 import time
 from dataclasses import dataclass
 
@@ -112,28 +112,89 @@ class ST7735:
             self.spi.writebytes(list(payload[offset : offset + chunk]))
 
 
+def load_font(size: int, bold: bool = False):
+    from PIL import ImageFont  # type: ignore
+
+    candidates = [
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    for path in candidates:
+        try:
+            return ImageFont.truetype(path, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
+
+
+def compact_text(status: str, text: str) -> str:
+    clean = " ".join(text.replace("\n", " ").split())
+    clean = clean.split(" Source image:", 1)[0].strip()
+    if not clean:
+        return "等待蓝色按钮触发"
+    if status != "reply":
+        return clean[:56] + ("…" if len(clean) > 56 else "")
+
+    sentences = [part.strip() for part in re.split(r"(?<=[。！？!?])", clean) if part.strip()]
+    if sentences:
+        clean = "".join(sentences[:2])
+    max_chars = 64
+    return clean[:max_chars] + ("…" if len(clean) > max_chars else "")
+
+
+def text_width(draw, text: str, font) -> int:
+    if not text:
+        return 0
+    bbox = draw.textbbox((0, 0), text, font=font)
+    return bbox[2] - bbox[0]
+
+
+def truncate_to_width(draw, text: str, font, max_width: int) -> str:
+    ellipsis = "…"
+    while text and text_width(draw, text + ellipsis, font) > max_width:
+        text = text[:-1]
+    return text + ellipsis if text else ellipsis
+
+
+def wrap_by_pixels(draw, text: str, font, max_width: int, max_lines: int) -> list[str]:
+    lines: list[str] = []
+    current = ""
+    for char in text:
+        trial = current + char
+        if text_width(draw, trial, font) <= max_width:
+            current = trial
+            continue
+        if current:
+            lines.append(current)
+        current = char
+        if len(lines) == max_lines:
+            lines[-1] = truncate_to_width(draw, lines[-1], font, max_width)
+            return lines
+    if current:
+        lines.append(current)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = truncate_to_width(draw, lines[-1], font, max_width)
+    return lines
+
+
 def draw_screen(status: str, text: str) -> None:
-    from PIL import Image, ImageDraw, ImageFont  # type: ignore
+    from PIL import Image, ImageDraw  # type: ignore
 
     theme = THEMES.get(status, THEMES["reply"])
     img = Image.new("RGB", (WIDTH, HEIGHT), theme.bg)
     draw = ImageDraw.Draw(img)
+    title_font = load_font(13, bold=True)
+    body_font = load_font(10 if status == "reply" else 11)
 
-    try:
-        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 16)
-        body_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-    except OSError:
-        title_font = ImageFont.load_default()
-        body_font = ImageFont.load_default()
+    draw.rounded_rectangle((4, 4, WIDTH - 5, 23), radius=4, fill=theme.accent)
+    draw.text((9, 6), theme.title, fill=(255, 255, 255), font=title_font)
 
-    draw.rounded_rectangle((4, 4, WIDTH - 5, 28), radius=4, fill=theme.accent)
-    draw.text((10, 8), theme.title, fill=(255, 255, 255), font=title_font)
-
-    clean = " ".join(text.replace("\n", " ").split())
-    if not clean:
-        clean = "等待蓝色按钮触发"
-    wrapped = textwrap.wrap(clean, width=13)[:9]
-    y = 38
+    clean = compact_text(status, text)
+    wrapped = wrap_by_pixels(draw, clean, body_font, max_width=112, max_lines=9)
+    y = 32
     for line in wrapped:
         draw.text((8, y), line, fill=(235, 245, 255), font=body_font)
         y += 13
@@ -166,7 +227,7 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except Exception as exc:  # Keep the main C++ assistant alive even if HUD hardware is missing.
+    except Exception as exc:
         os.makedirs("/tmp", exist_ok=True)
         with open("/tmp/embedded-ai-hud.log", "a", encoding="utf-8") as log:
             log.write(f"{time.strftime('%F %T')} HUD error: {exc}\n")

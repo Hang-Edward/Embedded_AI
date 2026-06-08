@@ -34,7 +34,7 @@ void PiHardwareHud::runScript(const std::string& mode, const std::string& value)
     const std::string script = projectRoot_ + "/hardware/pi_bridge/scripts/pi_hud.py";
     const std::string command = "python3 " + shellQuote(script) + " "
         + shellQuote(mode) + " " + shellQuote(value)
-        + " >/tmp/embedded-ai-hud.log 2>&1 &";
+        + " >>/tmp/embedded-ai-hud.log 2>&1";
     std::system(command.c_str());
 #else
     (void)mode;

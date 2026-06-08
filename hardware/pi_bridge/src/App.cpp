@@ -118,8 +118,10 @@ int App::runButtonMode() {
         if (waitForButtonEvent()) {
             console_.info("\nButton event received. Starting voice command flow.\n");
             hud_.showStatus(HudStatus::Busy, "AI 正在处理，请稍等");
-            analyzeVoiceCommand();
-            hud_.showStatus(HudStatus::Ready, "系统就绪，可以按蓝色按钮");
+            const uint32_t recordId = analyzeVoiceCommand();
+            if (recordId == 0U) {
+                hud_.showError("AI 流程失败，请查看日志");
+            }
             console_.info("\nReady. Press the NUCLEO blue button again for the next command.\n");
         }
     }

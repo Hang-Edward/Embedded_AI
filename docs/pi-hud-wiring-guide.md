@@ -132,6 +132,43 @@ sudo reboot
 cat /tmp/embedded-ai-hud.log
 ```
 
+## 5.1 红绿灯一直绿色怎么办
+
+先确认软件有没有真的切换 GPIO：
+
+```bash
+cd ~/Embedded_AI
+python3 hardware/pi_bridge/scripts/pi_hud.py ready "ready"
+pinctrl get 17
+pinctrl get 27
+pinctrl get 22
+
+python3 hardware/pi_bridge/scripts/pi_hud.py busy "busy"
+pinctrl get 17
+pinctrl get 27
+pinctrl get 22
+
+python3 hardware/pi_bridge/scripts/pi_hud.py error "error"
+pinctrl get 17
+pinctrl get 27
+pinctrl get 22
+```
+
+正确结果应该是：
+
+```text
+ready: GPIO17=hi, GPIO27=lo, GPIO22=lo
+busy:  GPIO17=lo, GPIO27=hi, GPIO22=lo
+error: GPIO17=lo, GPIO27=lo, GPIO22=hi
+```
+
+如果命令结果正确，但肉眼仍然一直绿，说明软件没问题，通常是接线问题：
+
+1. 检查红绿灯模块 `G/Y/R/GND` 四根线有没有接反。
+2. 确认 `GND` 接树莓派 `Pin 9`，不要接到 `3.3V` 或 `5V`。
+3. 确认 `G` 接 `Pin 11`，`Y` 接 `Pin 13`，`R` 接 `Pin 15`。
+4. 如果颜色不对应，只交换 `G/Y/R` 三根信号线，不要动 `GND`。
+
 ## 6. 运行 AI 演示
 
 更新代码、重新构建后，启动原来的服务：
@@ -148,3 +185,19 @@ systemctl --user restart embedded-ai.service
 2. 按下 NUCLEO 蓝色按钮，红绿灯切到黄灯。
 3. AI 完成分析后，LCD 显示 AI 回复，红绿灯回到绿灯。
 4. 如果摄像头、API 或 AI 分析失败，红绿灯亮红灯，LCD 显示错误信息。
+
+## 7. LCD 为什么只显示摘要
+
+这块屏幕只有 `128x160` 像素，不是触摸屏，也没有翻页按钮。中文字体每个字占用的像素比较多，完整 AI 回复很容易超出屏幕。
+
+因此当前策略是：
+
+- LCD 只显示适合硬件演示的精简摘要。
+- Windows 客户端和 `logs/embedded-ai.log` 保留完整 AI 回复。
+- LCD 文本会按实际像素宽度换行，超出部分用省略号 `…` 收尾，避免文字被截断到屏幕外。
+
+如果后续要显示更多内容，有三个升级方向：
+
+1. 增加一个外置翻页按钮。
+2. 改成自动滚动字幕。
+3. 换更大屏幕，例如 2.8 寸或 3.5 寸 SPI/HDMI 屏。
