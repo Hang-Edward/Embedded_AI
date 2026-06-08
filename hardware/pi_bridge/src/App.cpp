@@ -39,7 +39,8 @@ App::App(Console& console,
       aiVision_(aiVision),
       audioRecorder_(audioRecorder),
       asrService_(asrService),
-      auditLog_(auditLog) {
+      auditLog_(auditLog),
+      hud_(".") {
 }
 
 int App::runInteractive() {
@@ -110,12 +111,15 @@ int App::runButtonMode() {
     console_.info("Press the NUCLEO blue button to start voice input.\n");
     console_.info("If speech is empty or ASR fails, the system will describe the current scene by default.\n");
     console_.info("Use Ctrl+C to stop this program.\n");
+    hud_.showStatus(HudStatus::Ready, "系统就绪，可以按蓝色按钮");
     hardware_.readEvents(500);
 
     while (true) {
         if (waitForButtonEvent()) {
             console_.info("\nButton event received. Starting voice command flow.\n");
+            hud_.showStatus(HudStatus::Busy, "AI 正在处理，请稍等");
             analyzeVoiceCommand();
+            hud_.showStatus(HudStatus::Ready, "系统就绪，可以按蓝色按钮");
             console_.info("\nReady. Press the NUCLEO blue button again for the next command.\n");
         }
     }
@@ -201,6 +205,7 @@ CaptureResult App::captureCameraFrame() {
     } else {
         auditLog_.appendHardwareAction("CAMERA_CAPTURE", "FAILED: " + result.message);
         devices_.displayMessage("CAMERA FAIL");
+        hud_.showError("摄像头故障：" + result.message);
         console_.error("Camera capture failed: " + result.message + "\n");
     }
     return result;
@@ -239,6 +244,7 @@ uint32_t App::analyzeCurrentFrame(TaskType intent) {
     if (!analysis.success) {
         auditLog_.appendHardwareAction("AI_ANALYZE", "FAILED: " + analysis.message);
         devices_.displayMessage("AI FAIL");
+        hud_.showError("AI 分析失败：" + analysis.message);
         console_.error("AI analysis failed: " + analysis.message + "\n");
         return 0;
     }
@@ -251,6 +257,7 @@ uint32_t App::analyzeCurrentFrame(TaskType intent) {
     console_.info("Image=" + analysis.sourceImagePath + "\n");
     console_.info("Type=" + taskTypeToText(task.type) + ", Risk=" + taskRiskToText(task.risk) + "\n");
     console_.info(task.aiSummary + "\n");
+    hud_.showReply(task.aiSummary);
     return entry.id;
 }
 
@@ -288,6 +295,7 @@ uint32_t App::analyzeVoiceCommand() {
     const TaskType intent = useSpeechPrompt ? inferTaskTypeFromSpeech(transcript) : TaskType::SceneDescription;
     const CaptureResult capture = captureCameraFrame();
     if (!capture.success) {
+        hud_.showError("摄像头拍照失败：" + capture.message);
         return 0;
     }
 
@@ -298,6 +306,7 @@ uint32_t App::analyzeVoiceCommand() {
     if (!analysis.success) {
         auditLog_.appendHardwareAction("VOICE_VISION_ANALYZE", "FAILED: " + analysis.message);
         devices_.displayMessage("AI FAIL");
+        hud_.showError("AI 响应失败：" + analysis.message);
         console_.error("Voice vision analysis failed: " + analysis.message + "\n");
         return 0;
     }
@@ -310,6 +319,7 @@ uint32_t App::analyzeVoiceCommand() {
     console_.info("Image=" + analysis.sourceImagePath + "\n");
     console_.info("Type=" + taskTypeToText(task.type) + ", Risk=" + taskRiskToText(task.risk) + "\n");
     console_.info(task.aiSummary + "\n");
+    hud_.showReply(task.aiSummary);
     return entry.id;
 }
 

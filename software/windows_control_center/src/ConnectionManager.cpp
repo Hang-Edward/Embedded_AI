@@ -239,8 +239,8 @@ void ConnectionManager::handleSshFinished(int exitCode) {
     }
 
     state_.sshOnline = false;
-    state_.assistantStatus = AssistantStatus::Warning;
-    state_.assistantStatusText = "树莓派可达，但 SSH 免密登录失败";
+    state_.assistantStatus = AssistantStatus::Error;
+    state_.assistantStatusText = "❌ SSH 连接失败：树莓派可达，但免密登录失败";
     state_.warning = "树莓派可以 ping 通，但 SSH 免密握手失败。通常是还没有配置 SSH key，或树莓派 SSH 服务拒绝当前公钥。";
     state_.hardwareItems = {
         {"树莓派网络", "✅ Ping 正常：" + host, HealthLevel::Ok},
@@ -569,8 +569,8 @@ QString ConnectionManager::latestSessionText(int* buttonEventCount) const {
 
 void ConnectionManager::updateAssistantStatus(bool serviceOk, int buttonEventCount, const QString& latestSession) {
     if (!serviceOk) {
-        state_.assistantStatus = AssistantStatus::Warning;
-        state_.assistantStatusText = "树莓派服务未运行，暂时不能按按钮";
+        state_.assistantStatus = AssistantStatus::Error;
+        state_.assistantStatusText = "❌ 树莓派服务未运行，暂时不能按按钮";
         state_.voiceCountdownSeconds = 0;
         return;
     }
@@ -592,6 +592,13 @@ void ConnectionManager::updateAssistantStatus(bool serviceOk, int buttonEventCou
     if (latestSession.isEmpty() || (ready >= received && ready >= recorded && ready >= recording)) {
         state_.assistantStatus = AssistantStatus::Ready;
         state_.assistantStatusText = "✅ 已就绪：现在可以按 NUCLEO 蓝色按钮";
+        state_.voiceCountdownSeconds = 0;
+        return;
+    }
+
+    if (containsAny(latestSession, {"Camera capture failed", "Voice vision analysis failed", "AI analysis failed", "timed out", "timeout"})) {
+        state_.assistantStatus = AssistantStatus::Error;
+        state_.assistantStatusText = "❌ 故障：摄像头、AI 响应或连接流程出现失败，请查看原始日志";
         state_.voiceCountdownSeconds = 0;
         return;
     }

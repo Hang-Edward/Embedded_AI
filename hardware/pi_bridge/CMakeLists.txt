@@ -23,6 +23,7 @@ add_executable(embedded_ai_pc_bridge
     src/NucleoOutputDevices.cpp
     src/OpenCvCameraService.cpp
     src/OutputDevice.cpp
+    src/PiHardwareHud.cpp
     src/PrototypeDeviceSet.cpp
     src/QwenResponseParser.cpp
     src/QwenAsrService.cpp

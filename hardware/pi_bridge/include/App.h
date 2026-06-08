@@ -6,6 +6,7 @@
 #include "CameraService.h"
 #include "Console.h"
 #include "HardwareBridge.h"
+#include "PiHardwareHud.h"
 #include "PrototypeDeviceSet.h"
 #include "QwenAsrService.h"
 
@@ -52,4 +53,5 @@ private:
     AudioRecorder& audioRecorder_;
     QwenAsrService& asrService_;
     AuditLogStore& auditLog_;
+    PiHardwareHud hud_;
 };
