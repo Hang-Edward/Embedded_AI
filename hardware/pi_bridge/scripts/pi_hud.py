@@ -3,17 +3,20 @@
 
 BCM pins:
 - Traffic light: G=GPIO17, Y=GPIO27, R=GPIO22, GND=GND
+- Rotary encoder: A=GPIO5, B=GPIO6, C/SW=GPIO16
 - ST7735 TFT: SPI0 MOSI/SCLK/CE0 plus RES=GPIO25, DC=GPIO24, BL=GPIO18
 """
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 WIDTH = 128
 HEIGHT = 160
@@ -28,6 +31,9 @@ LCD_BL = 18
 LCD_SPI_BUS = 0
 LCD_SPI_DEVICE = 0
 LCD_SPI_HZ = 16_000_000
+
+STATE_FILE = Path("/tmp/embedded-ai-hud-state.json")
+MAX_HISTORY = 10
 
 
 def pinctrl(pin: int, level: bool) -> None:
@@ -107,9 +113,26 @@ class ST7735:
     def show_rgb565(self, payload: bytes) -> None:
         self.set_window(0, 0, WIDTH - 1, HEIGHT - 1)
         pinctrl(LCD_DC, True)
-        chunk = 4096
-        for offset in range(0, len(payload), chunk):
-            self.spi.writebytes(list(payload[offset : offset + chunk]))
+        for offset in range(0, len(payload), 4096):
+            self.spi.writebytes(list(payload[offset : offset + 4096]))
+
+
+def load_state() -> dict:
+    if not STATE_FILE.exists():
+        return {"history": [], "page": 0}
+    try:
+        data = json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("state is not an object")
+        data.setdefault("history", [])
+        data.setdefault("page", 0)
+        return data
+    except Exception:
+        return {"history": [], "page": 0}
+
+
+def save_state(state: dict) -> None:
+    STATE_FILE.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
 
 
 def load_font(size: int, bold: bool = False):
@@ -129,19 +152,28 @@ def load_font(size: int, bold: bool = False):
     return ImageFont.load_default()
 
 
-def compact_text(status: str, text: str) -> str:
-    clean = " ".join(text.replace("\n", " ").split())
-    clean = clean.split(" Source image:", 1)[0].strip()
-    if not clean:
-        return "等待蓝色按钮触发"
-    if status != "reply":
-        return clean[:56] + ("…" if len(clean) > 56 else "")
+def clean_text(text: str) -> str:
+    cleaned = " ".join(text.replace("\r", " ").replace("\n", " ").split())
+    return cleaned.split(" Source image:", 1)[0].strip()
 
-    sentences = [part.strip() for part in re.split(r"(?<=[。！？!?])", clean) if part.strip()]
+
+def compact_reply(text: str) -> str:
+    cleaned = clean_text(text)
+    if not cleaned:
+        return "暂时没有 AI 回复。"
+
+    # 中文注释：小屏只做展示摘要，完整回答仍保存在日志和 Windows 客户端。
+    sentences = [part.strip() for part in re.split(r"(?<=[。！？!?])", cleaned) if part.strip()]
     if sentences:
-        clean = "".join(sentences[:2])
-    max_chars = 64
-    return clean[:max_chars] + ("…" if len(clean) > max_chars else "")
+        cleaned = "".join(sentences[:2])
+    max_chars = 76
+    return cleaned[:max_chars] + ("..." if len(cleaned) > max_chars else "")
+
+
+def compact_status(text: str, fallback: str) -> str:
+    cleaned = clean_text(text) or fallback
+    max_chars = 62
+    return cleaned[:max_chars] + ("..." if len(cleaned) > max_chars else "")
 
 
 def text_width(draw, text: str, font) -> int:
@@ -152,10 +184,10 @@ def text_width(draw, text: str, font) -> int:
 
 
 def truncate_to_width(draw, text: str, font, max_width: int) -> str:
-    ellipsis = "…"
-    while text and text_width(draw, text + ellipsis, font) > max_width:
+    suffix = "..."
+    while text and text_width(draw, text + suffix, font) > max_width:
         text = text[:-1]
-    return text + ellipsis if text else ellipsis
+    return text + suffix if text else suffix
 
 
 def wrap_by_pixels(draw, text: str, font, max_width: int, max_lines: int) -> list[str]:
@@ -169,7 +201,7 @@ def wrap_by_pixels(draw, text: str, font, max_width: int, max_lines: int) -> lis
         if current:
             lines.append(current)
         current = char
-        if len(lines) == max_lines:
+        if len(lines) >= max_lines:
             lines[-1] = truncate_to_width(draw, lines[-1], font, max_width)
             return lines
     if current:
@@ -180,21 +212,30 @@ def wrap_by_pixels(draw, text: str, font, max_width: int, max_lines: int) -> lis
     return lines
 
 
-def draw_screen(status: str, text: str) -> None:
+def draw_screen(status: str, text: str, page: int | None = None) -> None:
     from PIL import Image, ImageDraw  # type: ignore
 
     theme = THEMES.get(status, THEMES["reply"])
     img = Image.new("RGB", (WIDTH, HEIGHT), theme.bg)
     draw = ImageDraw.Draw(img)
-    title_font = load_font(13, bold=True)
+    title_font = load_font(12, bold=True)
     body_font = load_font(10 if status == "reply" else 11)
 
-    draw.rounded_rectangle((4, 4, WIDTH - 5, 23), radius=4, fill=theme.accent)
-    draw.text((9, 6), theme.title, fill=(255, 255, 255), font=title_font)
+    title = theme.title if page is None else f"{theme.title} {page}"
+    draw.rounded_rectangle((4, 4, WIDTH - 5, 24), radius=4, fill=theme.accent)
+    draw.text((8, 6), title, fill=(255, 255, 255), font=title_font)
 
-    clean = compact_text(status, text)
-    wrapped = wrap_by_pixels(draw, clean, body_font, max_width=112, max_lines=9)
-    y = 32
+    if status == "reply":
+        body = compact_reply(text)
+    elif status == "ready":
+        body = compact_status(text, "系统就绪，可以按旋钮开始语音输入。")
+    elif status == "busy":
+        body = compact_status(text, "AI 正在处理中，请稍等。")
+    else:
+        body = compact_status(text, "系统出现故障，请查看日志。")
+
+    wrapped = wrap_by_pixels(draw, body, body_font, max_width=112, max_lines=9)
+    y = 33
     for line in wrapped:
         draw.text((8, y), line, fill=(235, 245, 255), font=body_font)
         y += 13
@@ -208,13 +249,55 @@ def draw_screen(status: str, text: str) -> None:
     lcd.show_rgb565(bytes(pixels))
 
 
+def show_reply(text: str) -> None:
+    set_led("ready")
+    state = load_state()
+    history = [text] + [item for item in state.get("history", []) if item != text]
+    state["history"] = history[:MAX_HISTORY]
+    state["page"] = 0
+    save_state(state)
+    draw_screen("reply", state["history"][0], page=0)
+
+
+def show_page(direction: str) -> None:
+    state = load_state()
+    history = state.get("history", [])
+    if not history:
+        draw_screen("ready", "暂无 AI 回复历史。")
+        return
+
+    page = int(state.get("page", 0))
+    if direction == "older":
+        page += 1
+    elif direction == "newer":
+        page -= 1
+    else:
+        page += int(direction or "0")
+
+    page = max(0, min(len(history) - 1, page))
+    state["page"] = page
+    save_state(state)
+    draw_screen("reply", history[page], page=-page)
+
+
+def show_recording_countdown(seconds: int) -> None:
+    set_led("busy")
+    seconds = max(1, min(seconds, 15))
+    for remaining in range(seconds, 0, -1):
+        draw_screen("busy", f"录音中：还剩 {remaining} 秒，请对着 Logitech C270 说话。")
+        time.sleep(1)
+
+
 def main() -> int:
     mode = sys.argv[1] if len(sys.argv) > 1 else "ready"
     text = sys.argv[2] if len(sys.argv) > 2 else ""
 
     if mode == "reply":
-        set_led("ready")
-        draw_screen("reply", text)
+        show_reply(text)
+    elif mode == "page":
+        show_page(text)
+    elif mode == "recording":
+        show_recording_countdown(int(text or "5"))
     elif mode in {"ready", "busy", "error"}:
         set_led(mode)
         draw_screen(mode, text)

@@ -46,7 +46,7 @@ bool HardwareBridge::setLed(bool enabled) {
         return true;
     }
 
-    // 中文注释：如果串口回复格式不同或混入启动信息，用状态回读确认真实 LED 状态。
+    // 中文注释：如果串口回复里混入启动信息，就用状态回读确认真实 LED 状态。
     return statusShowsLed(readStatus(), enabled);
 }
 

@@ -40,7 +40,8 @@ App::App(Console& console,
       audioRecorder_(audioRecorder),
       asrService_(asrService),
       auditLog_(auditLog),
-      hud_(".") {
+      hud_("."),
+      rotary_() {
 }
 
 int App::runInteractive() {
@@ -107,22 +108,36 @@ int App::runDemo() {
 }
 
 int App::runButtonMode() {
-    console_.info("\nButton voice assistant mode\n");
-    console_.info("Press the NUCLEO blue button to start voice input.\n");
+    console_.info("\nRotary voice assistant mode\n");
+    console_.info("Press the rotary encoder button to start voice input.\n");
+    console_.info("Rotate left/right to browse AI reply history on the LCD.\n");
+    console_.info("The NUCLEO blue button is kept as a backup trigger.\n");
     console_.info("If speech is empty or ASR fails, the system will describe the current scene by default.\n");
     console_.info("Use Ctrl+C to stop this program.\n");
-    hud_.showStatus(HudStatus::Ready, "系统就绪，可以按蓝色按钮");
-    hardware_.readEvents(500);
+    hud_.showStatus(HudStatus::Ready, "系统就绪，可以按旋钮开始语音输入。");
+    hardware_.readEvents(200);
 
     while (true) {
-        if (waitForButtonEvent()) {
-            console_.info("\nButton event received. Starting voice command flow.\n");
-            hud_.showStatus(HudStatus::Busy, "AI 正在处理，请稍等");
+        const RotaryEvent rotaryEvent = rotary_.poll();
+        if (rotaryEvent == RotaryEvent::CounterClockwise) {
+            console_.info("Rotary: older reply page.\n");
+            hud_.showOlderReplyPage();
+            continue;
+        }
+        if (rotaryEvent == RotaryEvent::Clockwise) {
+            console_.info("Rotary: newer reply page.\n");
+            hud_.showNewerReplyPage();
+            continue;
+        }
+
+        if (rotaryEvent == RotaryEvent::Pressed || waitForButtonEvent()) {
+            console_.info("\nTrigger received. Starting voice command flow.\n");
+            hud_.showStatus(HudStatus::Busy, "已触发，准备录音。");
             const uint32_t recordId = analyzeVoiceCommand();
             if (recordId == 0U) {
-                hud_.showError("AI 流程失败，请查看日志");
+                hud_.showError("AI 流程失败，请查看日志。");
             }
-            console_.info("\nReady. Press the NUCLEO blue button again for the next command.\n");
+            console_.info("\nReady. Press the rotary encoder button again for the next command.\n");
         }
     }
 }
@@ -237,6 +252,7 @@ void App::analyzeCameraFrameMenu() {
 }
 
 uint32_t App::analyzeCurrentFrame(TaskType intent) {
+    hud_.showStatus(HudStatus::Busy, "AI 响应中，请稍等。");
     const CaptureResult capture = captureCameraFrame();
     if (!capture.success) {
         return 0;
@@ -268,15 +284,18 @@ uint32_t App::analyzeVoiceCommand() {
     bool useSpeechPrompt = false;
 
     console_.info("Recording voice command for 5 seconds. Please speak now...\n");
+    hud_.showRecordingCountdown(5);
     const AudioRecordResult audio = audioRecorder_.recordWav("captures/voice-command.wav", 5);
     if (!audio.success) {
         auditLog_.appendHardwareAction("VOICE_RECORD", "FAILED: " + audio.message);
+        hud_.showError("录音失败：" + audio.message);
         console_.error("Voice recording failed: " + audio.message + "\n");
         console_.info("Fallback: describing current scene without voice command.\n");
     } else {
         auditLog_.appendHardwareAction("VOICE_RECORD", audio.filePath);
         console_.info("Audio recorded: " + audio.filePath + "\n");
         console_.info("Recognizing speech with Qwen ASR...\n");
+        hud_.showStatus(HudStatus::Busy, "正在识别语音，请稍等。");
 
         const SpeechRecognitionResult speech = asrService_.transcribeWav(audio.filePath);
         if (!speech.success) {
@@ -295,6 +314,7 @@ uint32_t App::analyzeVoiceCommand() {
     }
 
     const TaskType intent = useSpeechPrompt ? inferTaskTypeFromSpeech(transcript) : TaskType::SceneDescription;
+    hud_.showStatus(HudStatus::Busy, "AI 响应中，请稍等。");
     const CaptureResult capture = captureCameraFrame();
     if (!capture.success) {
         hud_.showError("摄像头拍照失败：" + capture.message);
@@ -326,13 +346,13 @@ uint32_t App::analyzeVoiceCommand() {
 }
 
 bool App::waitForButtonEvent() {
-    const std::string events = hardware_.readEvents(500);
+    const std::string events = hardware_.readEvents(50);
     return events.find("EVENT BUTTON PRESSED") != std::string::npos;
 }
 
 TaskType App::inferTaskTypeFromSpeech(const std::string& transcript) const {
-    if (transcript.find("解") != std::string::npos
-        || transcript.find("题") != std::string::npos
+    if (transcript.find("解题") != std::string::npos
+        || transcript.find("题目") != std::string::npos
         || transcript.find("答案") != std::string::npos
         || transcript.find("solve") != std::string::npos
         || transcript.find("problem") != std::string::npos) {

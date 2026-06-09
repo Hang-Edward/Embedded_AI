@@ -29,16 +29,30 @@ void PiHardwareHud::showError(const std::string& message) const {
     showStatus(HudStatus::Error, message);
 }
 
-void PiHardwareHud::runScript(const std::string& mode, const std::string& value) const {
+void PiHardwareHud::showOlderReplyPage() const {
+    runScript("page", "older");
+}
+
+void PiHardwareHud::showNewerReplyPage() const {
+    runScript("page", "newer");
+}
+
+void PiHardwareHud::showRecordingCountdown(int seconds) const {
+    runScript("recording", std::to_string(seconds), true);
+}
+
+void PiHardwareHud::runScript(const std::string& mode, const std::string& value, bool async) const {
 #ifdef __linux__
     const std::string script = projectRoot_ + "/hardware/pi_bridge/scripts/pi_hud.py";
     const std::string command = "python3 " + shellQuote(script) + " "
         + shellQuote(mode) + " " + shellQuote(value)
-        + " >>/tmp/embedded-ai-hud.log 2>&1";
+        + " >>/tmp/embedded-ai-hud.log 2>&1"
+        + (async ? " &" : "");
     std::system(command.c_str());
 #else
     (void)mode;
     (void)value;
+    (void)async;
 #endif
 }
 
