@@ -18,24 +18,56 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+namespace {
+
+QString statusTextFor(const ConnectionState& state) {
+    if (!state.sshOnline) {
+        if (state.piReachable) {
+            return "红灯：树莓派可达，但 SSH 握手失败";
+        }
+        return "红灯：未连接到树莓派，请检查网络或 IP";
+    }
+    switch (state.assistantStatus) {
+    case AssistantStatus::Ready:
+        return "绿灯：系统就绪，现在可以按旋钮触发";
+    case AssistantStatus::Listening:
+        return state.voiceCountdownSeconds > 0
+            ? QString("黄灯：正在录音，还剩 %1 秒").arg(state.voiceCountdownSeconds)
+            : "黄灯：正在录音";
+    case AssistantStatus::Thinking:
+        return "黄灯：AI 正在识别语音并分析画面";
+    case AssistantStatus::Warning:
+        return "黄灯：系统可用，但有项目需要检查";
+    case AssistantStatus::Error:
+        return "红灯：流程故障，请查看诊断页和原始日志";
+    case AssistantStatus::Connecting:
+        return "黄灯：正在检测连接与服务状态";
+    case AssistantStatus::Offline:
+        return "红灯：服务离线";
+    }
+    return "正在刷新状态";
+}
+
+} // namespace
+
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), connection_(config_, this) {
     config_.load();
-    setWindowTitle("嵌入式 AI 视觉助手控制台");
+    setWindowTitle("Embedded AI Reality Bridge");
     resize(1280, 820);
-    setMinimumSize(900, 620);
+    setMinimumSize(920, 620);
     qApp->setStyleSheet(Theme::styleSheet());
     buildUi();
 
     liveTimer_ = new QTimer(this);
-    liveTimer_->setInterval(1000);
+    liveTimer_->setInterval(2000);
     QObject::connect(liveTimer_, &QTimer::timeout, this, [this]() {
         connection_.refreshNow();
     });
     connection_.setStateCallback([this](const ConnectionState& state) {
         applyConnectionState(state);
     });
-    QTimer::singleShot(200, this, [this]() {
+    QTimer::singleShot(160, this, [this]() {
         connection_.beginAutoConnect();
     });
 }
@@ -51,13 +83,13 @@ void MainWindow::buildUi() {
     setCentralWidget(central_);
 
     auto* root = new QHBoxLayout(central_);
-    root->setContentsMargins(0, 0, 0, 0);
-    root->setSpacing(0);
+    root->setContentsMargins(14, 14, 14, 14);
+    root->setSpacing(14);
     buildSidebar(root);
 
     auto* rightSide = new QVBoxLayout();
     rightSide->setContentsMargins(0, 0, 0, 0);
-    rightSide->setSpacing(0);
+    rightSide->setSpacing(14);
     buildHeader(rightSide);
     buildPages(rightSide);
     root->addLayout(rightSide, 1);
@@ -66,15 +98,15 @@ void MainWindow::buildUi() {
 void MainWindow::buildSidebar(QHBoxLayout* root) {
     sidebar_ = new QWidget(this);
     sidebar_->setObjectName("sidebar");
-    sidebar_->setFixedWidth(220);
+    sidebar_->setFixedWidth(232);
     auto* side = new QVBoxLayout(sidebar_);
     side->setContentsMargins(16, 18, 16, 16);
     side->setSpacing(10);
 
-    auto* title = new QLabel("嵌入式 AI\n控制台", sidebar_);
+    auto* title = new QLabel("Embedded AI\nReality Bridge", sidebar_);
     title->setObjectName("appTitle");
     side->addWidget(title);
-    side->addSpacing(18);
+    side->addSpacing(16);
 
     side->addWidget(makeNavButton("chat", "实时对话"));
     side->addWidget(makeNavButton("history", "历史记录"));
@@ -84,57 +116,48 @@ void MainWindow::buildSidebar(QHBoxLayout* root) {
     side->addWidget(makeNavButton("settings", "设置"));
     side->addStretch(1);
 
-    auto* reconnect = new QPushButton("重新连接", sidebar_);
-    reconnect->setObjectName("primaryButton");
-    QObject::connect(reconnect, &QPushButton::clicked, this, [this]() {
+    auto addAction = [this, side](const QString& text, auto slot) {
+        auto* button = new QPushButton(text, sidebar_);
+        button->setObjectName("primaryButton");
+        QObject::connect(button, &QPushButton::clicked, this, slot);
+        side->addWidget(button);
+        return button;
+    };
+
+    addAction("重新连接", [this]() {
         settingsPage_->saveToConfig();
         connection_.reconnect();
     });
-    side->addWidget(reconnect);
-
-    auto* restartService = new QPushButton("重启服务", sidebar_);
-    restartService->setObjectName("primaryButton");
-    QObject::connect(restartService, &QPushButton::clicked, this, [this]() {
+    addAction("重启树莓派服务", [this]() {
         settingsPage_->saveToConfig();
         connection_.restartPiService();
     });
-    side->addWidget(restartService);
-
-    auto* startService = new QPushButton("启动服务", sidebar_);
-    startService->setObjectName("primaryButton");
-    QObject::connect(startService, &QPushButton::clicked, this, [this]() {
+    addAction("启动服务", [this]() {
         settingsPage_->saveToConfig();
         connection_.startPiService();
     });
-    side->addWidget(startService);
-
-    auto* stopService = new QPushButton("停止服务", sidebar_);
-    stopService->setObjectName("primaryButton");
-    QObject::connect(stopService, &QPushButton::clicked, this, [this]() {
+    addAction("停止服务", [this]() {
         settingsPage_->saveToConfig();
         connection_.stopPiService();
     });
-    side->addWidget(stopService);
 
-    watchButton_ = new QPushButton("实时监听：开", sidebar_);
-    watchButton_->setObjectName("primaryButton");
-    QObject::connect(watchButton_, &QPushButton::clicked, this, [this]() {
+    watchButton_ = addAction("实时监听：开", [this]() {
         setWatchLive(!watchLive_);
     });
-    side->addWidget(watchButton_);
 
     root->addWidget(sidebar_);
 }
 
 void MainWindow::buildHeader(QVBoxLayout* rightSide) {
     auto* header = new QWidget(this);
+    header->setObjectName("glassHeader");
     auto* layout = new QVBoxLayout(header);
-    layout->setContentsMargins(24, 18, 24, 14);
-    layout->setSpacing(8);
+    layout->setContentsMargins(22, 18, 22, 18);
+    layout->setSpacing(9);
 
     connectionTitle_ = new QLabel("正在连接树莓派...", header);
     connectionTitle_->setObjectName("connectionTitle");
-    connectionSubtitle_ = new QLabel("优先尝试最近成功 IP，然后尝试 ssh ch@172.20.10.6。", header);
+    connectionSubtitle_ = new QLabel("优先尝试最近一次成功 IP，然后尝试 ssh ch@172.20.10.6。", header);
     connectionSubtitle_->setObjectName("connectionSubtitle");
     connectionSubtitle_->setWordWrap(true);
 
@@ -143,12 +166,12 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
     readyDot_->setObjectName("readyDot");
     readyDot_->setProperty("status", "connecting");
     readyDot_->setFixedSize(16, 16);
-    readyText_ = new QLabel("连接中：等待树莓派状态", header);
+    readyText_ = new QLabel("正在建立连接", header);
     readyText_->setObjectName("readyText");
     readyRow->addWidget(readyDot_, 0, Qt::AlignLeft);
     readyRow->addWidget(readyText_, 1);
 
-    actionBanner_ = new QLabel("⏳ 正在建立连接...", header);
+    actionBanner_ = new QLabel("正在自动检测树莓派、服务、摄像头和日志...", header);
     actionBanner_->setObjectName("actionBanner");
     actionBanner_->setWordWrap(true);
 
@@ -159,8 +182,7 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
 
     layout->addWidget(connectionTitle_);
     layout->addWidget(connectionSubtitle_);
-    readyDot_->hide();
-    readyText_->hide();
+    layout->addLayout(readyRow);
     layout->addWidget(actionBanner_);
     layout->addWidget(lanWarning_);
     rightSide->addWidget(header);
@@ -168,6 +190,7 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
 
 void MainWindow::buildPages(QVBoxLayout* rightSide) {
     stack_ = new QStackedWidget(this);
+    stack_->setObjectName("glassPanel");
     chatPage_ = new ChatPage(stack_);
     historyPage_ = new HistoryPage(stack_);
     hardwarePage_ = new HardwarePage(stack_);
@@ -208,13 +231,13 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
         connectionSubtitle_->setText("正在通过 SSH 自动刷新服务、硬件、日志和最新图片。");
     } else if (state.piReachable) {
         connectionTitle_->setText("树莓派网络可达：" + state.activeHost);
-        connectionSubtitle_->setText("Ping 正常，但 SSH 免密登录失败。请检查 SSH key 或 authorized_keys。");
+        connectionSubtitle_->setText("Ping 正常，但 SSH 握手失败。请检查 SSH key 或 authorized_keys。");
     } else if (!state.activeHost.isEmpty()) {
         connectionTitle_->setText("正在检测树莓派：" + state.activeHost);
         connectionSubtitle_->setText("先检测网络可达性，再检测 SSH。");
     } else {
         connectionTitle_->setText("树莓派未连接");
-        connectionSubtitle_->setText("请在设置页输入 ssh ch@ip，然后点击重新连接。");
+        connectionSubtitle_->setText("请确认 PC 与树莓派在同一网络，或在设置页手动输入 ssh ch@ip 后重连。");
     }
 
     QString statusClass = "connecting";
@@ -231,14 +254,15 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
     readyDot_->style()->unpolish(readyDot_);
     readyDot_->style()->polish(readyDot_);
 
-    readyText_->setText(state.assistantStatusText.isEmpty() ? "等待树莓派状态" : state.assistantStatusText);
+    const QString cleanStatus = statusTextFor(state);
+    readyText_->setText(cleanStatus);
     actionBanner_->setProperty("status", statusClass);
     actionBanner_->style()->unpolish(actionBanner_);
     actionBanner_->style()->polish(actionBanner_);
-    actionBanner_->setText(state.assistantStatusText.isEmpty() ? "⏳ 等待状态刷新..." : state.assistantStatusText);
+    actionBanner_->setText(cleanStatus);
 
-    lanWarning_->setVisible(!state.warning.isEmpty());
-    lanWarning_->setText(state.warning);
+    lanWarning_->setVisible(!state.warning.isEmpty() && !state.sshOnline);
+    lanWarning_->setText("网络提示：如果 PC 和树莓派没有处在同一局域网，SSH 可能无法连接。手机热点下通常前三段 IP 相同。");
     hardwarePage_->setState(state);
     logsPage_->setLogText(state.logText);
     cameraPage_->setImagePath(state.localFramePath);
@@ -255,7 +279,7 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
 
 void MainWindow::updateResponsiveMode() {
     const bool compact = width() < 1040;
-    sidebar_->setFixedWidth(compact ? 92 : 220);
+    sidebar_->setFixedWidth(compact ? 98 : 232);
     for (auto it = navButtons_.begin(); it != navButtons_.end(); ++it) {
         it.value()->setMinimumHeight(compact ? 46 : 42);
     }

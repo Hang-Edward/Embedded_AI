@@ -3,15 +3,16 @@
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
+#include <sstream>
 #include <string>
 
 namespace {
 
 constexpr int PinA = 5;
 constexpr int PinB = 6;
-constexpr int PinButton = 16;
-constexpr int RotationStepsPerDetent = 4;
-constexpr auto PressDebounce = std::chrono::milliseconds(350);
+// 中文注释：常见 EC11 每个机械卡点可能只暴露两个稳定相位，使用 2 能避免漏转。
+constexpr int RotationStepsPerDetent = 2;
 
 bool isClockwiseTransition(int transition) {
     return transition == 0b1101
@@ -27,45 +28,116 @@ bool isCounterClockwiseTransition(int transition) {
         || transition == 0b1000;
 }
 
+std::string readSmallFile(const std::string& path) {
+    std::ifstream input(path);
+    std::ostringstream content;
+    content << input.rdbuf();
+    return content.str();
+}
+
+bool writeSmallFile(const std::string& path, const std::string& value) {
+    std::ofstream output(path);
+    if (!output) {
+        return false;
+    }
+    output << value;
+    return static_cast<bool>(output);
+}
+
 } // namespace
 
 PiRotaryInput::PiRotaryInput()
     : initialized_(false),
+      linuxGpioInitialized_(false),
+      linuxGpioBase_(-1),
       lastEncoded_(0),
-      rotationAccumulator_(0),
-      lastButtonLevel_(1),
-      lastPressTime_(std::chrono::steady_clock::now() - PressDebounce) {
-#ifdef __linux__
-    std::system("pinctrl set 5 ip pu >/dev/null 2>&1");
-    std::system("pinctrl set 6 ip pu >/dev/null 2>&1");
-    std::system("pinctrl set 16 ip pu >/dev/null 2>&1");
-#endif
+      rotationAccumulator_(0) {
+    initializeLinuxGpio();
 }
 
 RotaryEvent PiRotaryInput::poll() {
     const int a = readPin(PinA);
     const int b = readPin(PinB);
-    const int button = readPin(PinButton);
-    if (a < 0 || b < 0 || button < 0) {
+    if (a < 0 || b < 0) {
         return RotaryEvent::None;
     }
 
     if (!initialized_) {
         lastEncoded_ = (a << 1) | b;
-        lastButtonLevel_ = button;
         initialized_ = true;
         return RotaryEvent::None;
-    }
-
-    const RotaryEvent buttonEvent = pollButton(button);
-    if (buttonEvent != RotaryEvent::None) {
-        return buttonEvent;
     }
 
     return pollRotation(a, b);
 }
 
+void PiRotaryInput::initializeLinuxGpio() {
+#ifdef __linux__
+    std::system("pinctrl set 5 ip pu >/dev/null 2>&1");
+    std::system("pinctrl set 6 ip pu >/dev/null 2>&1");
+
+    for (int chip = 0; chip < 700; ++chip) {
+        const std::string basePath = "/sys/class/gpio/gpiochip" + std::to_string(chip);
+        const std::string label = readSmallFile(basePath + "/label");
+        if (label.find("pinctrl-rp1") == std::string::npos) {
+            continue;
+        }
+        const std::string baseText = readSmallFile(basePath + "/base");
+        try {
+            linuxGpioBase_ = std::stoi(baseText);
+        } catch (...) {
+            linuxGpioBase_ = -1;
+        }
+        break;
+    }
+
+    if (linuxGpioBase_ < 0) {
+        return;
+    }
+
+    for (int pin : {PinA, PinB}) {
+        const int sysfsPin = linuxGpioBase_ + pin;
+        const std::string gpioPath = "/sys/class/gpio/gpio" + std::to_string(sysfsPin);
+        if (readSmallFile(gpioPath + "/value").empty()) {
+            writeSmallFile("/sys/class/gpio/export", std::to_string(sysfsPin));
+        }
+        writeSmallFile(gpioPath + "/direction", "in");
+    }
+    linuxGpioInitialized_ = true;
+#endif
+}
+
 int PiRotaryInput::readPin(int bcmPin) const {
+#ifdef __linux__
+    const int sysfsValue = readPinFromSysfs(bcmPin);
+    if (sysfsValue >= 0) {
+        return sysfsValue;
+    }
+    return readPinFromPinctrl(bcmPin);
+#else
+    (void)bcmPin;
+    return -1;
+#endif
+}
+
+int PiRotaryInput::readPinFromSysfs(int bcmPin) const {
+#ifdef __linux__
+    if (!linuxGpioInitialized_ || linuxGpioBase_ < 0) {
+        return -1;
+    }
+    const int sysfsPin = linuxGpioBase_ + bcmPin;
+    const std::string value = readSmallFile("/sys/class/gpio/gpio" + std::to_string(sysfsPin) + "/value");
+    if (value.empty()) {
+        return -1;
+    }
+    return value[0] == '0' ? 0 : 1;
+#else
+    (void)bcmPin;
+    return -1;
+#endif
+}
+
+int PiRotaryInput::readPinFromPinctrl(int bcmPin) const {
 #ifdef __linux__
     const std::string command = "pinctrl get " + std::to_string(bcmPin) + " 2>/dev/null";
     std::array<char, 160> buffer{};
@@ -119,20 +191,4 @@ RotaryEvent PiRotaryInput::pollRotation(int a, int b) {
         return RotaryEvent::CounterClockwise;
     }
     return RotaryEvent::None;
-}
-
-RotaryEvent PiRotaryInput::pollButton(int buttonLevel) {
-    // 中文注释：常见旋钮按键为上拉输入，按下时 GPIO 变为低电平。
-    const bool pressedNow = buttonLevel == 0 && lastButtonLevel_ == 1;
-    lastButtonLevel_ = buttonLevel;
-    if (!pressedNow) {
-        return RotaryEvent::None;
-    }
-
-    const auto now = std::chrono::steady_clock::now();
-    if (now - lastPressTime_ < PressDebounce) {
-        return RotaryEvent::None;
-    }
-    lastPressTime_ = now;
-    return RotaryEvent::Pressed;
 }

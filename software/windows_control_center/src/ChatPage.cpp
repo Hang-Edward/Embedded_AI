@@ -7,7 +7,7 @@
 #include <QVBoxLayout>
 
 ChatPage::ChatPage(QWidget* parent)
-    : BasePage("实时对话", "显示最近一次蓝色按钮触发后的图片、语音指令和 AI 分析结果。", parent) {
+    : BasePage("实时对话", "按下旋钮后，语音输入、拍照画面和 AI 回复会像网页版 LLM 对话一样显示在这里。", parent) {
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setObjectName("chatScroll");
@@ -34,8 +34,8 @@ void ChatPage::appendDemoConversation() {
     clearMessages();
     const int insertAt = qMax(0, messages_->count() - 1);
     auto* system = new ChatMessageWidget(ChatMessageWidget::Role::System, this);
-    system->setMessage("等待树莓派连接",
-        "连接成功后，这里会显示最近一次蓝色按钮触发的图片、流程和 AI 回答。");
+    system->setMessage("等待硬件触发",
+        "连接成功后，按下旋钮即可开始 5 秒语音输入。完成后这里会显示摄像头画面、识别流程和 AI 回答。");
     messages_->insertWidget(insertAt, system);
 }
 
@@ -66,7 +66,7 @@ void ChatPage::setLatestSession(const ConnectionState& state) {
     messages_->insertWidget(insertAt + 1, flow);
 
     auto* assistant = new ChatMessageWidget(ChatMessageWidget::Role::Assistant, this);
-    assistant->setMessage("AI 回答 / 分析", record.aiText.isEmpty() ? "当前日志中没有解析到 AI 回答。" : record.aiText);
+    assistant->setMessage("AI 回复 / 分析", record.aiText.isEmpty() ? "当前日志中没有解析到 AI 回复。" : record.aiText);
     messages_->insertWidget(insertAt + 2, assistant);
 }
 

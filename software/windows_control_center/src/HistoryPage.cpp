@@ -25,7 +25,7 @@ QPixmap loadPixmapFromFile(const QString& imagePath, QString* error) {
 }
 
 HistoryPage::HistoryPage(QWidget* parent)
-    : BasePage("历史记录", "只记录最近十次已经完成的 AI 分析，不显示录音中或失败的半截流程。", parent) {
+    : BasePage("历史记录", "最近十次成功完成的 AI 分析。录音中、失败或未完成的流程不会写入这里。", parent) {
     auto* splitter = new QSplitter(Qt::Horizontal, this);
     list_ = new QListWidget(splitter);
     list_->setObjectName("recentList");
@@ -73,16 +73,16 @@ void HistoryPage::setRecords(const ConnectionState& state) {
     recordsKey_ = newKey;
     records_ = state.recentRecords;
     list_->clear();
-    for (const ConversationRecord& record : records_) {
-        const QString label = QString("%1  %2").arg(record.timestamp.isEmpty() ? record.title : record.timestamp,
-            record.userText.left(46));
+    for (int i = 0; i < records_.size(); ++i) {
+        const ConversationRecord& record = records_[i];
+        const QString label = QString("AI REPLY %1  %2").arg(-i).arg(record.userText.left(44));
         list_->addItem(label);
     }
 
     if (records_.isEmpty()) {
         image_->setPixmap(QPixmap());
-        image_->setText("暂无历史图片。请按一次 NUCLEO 蓝色按钮，等待 AI 完成分析。");
-        detail_->setPlainText("暂无成功的历史记录。录音中、AI 响应中、失败或未完成的流程不会写入这里。");
+        image_->setText("暂无历史图片。请按一次旋钮，等待 AI 完成分析。");
+        detail_->setPlainText("暂无成功历史记录。");
         return;
     }
 
@@ -108,8 +108,8 @@ void HistoryPage::showRecord(int row) {
     }
 
     detail_->setPlainText(
-        "用户/触发：\n" + record.userText + "\n\n"
-        "流程：\n" + record.flowText + "\n\n"
-        "AI 回答：\n" + record.aiText + "\n\n"
+        "用户 / 触发：\n" + record.userText + "\n\n"
+        "执行流程：\n" + record.flowText + "\n\n"
+        "AI 回复：\n" + record.aiText + "\n\n"
         "本地图片：\n" + record.imagePath);
 }

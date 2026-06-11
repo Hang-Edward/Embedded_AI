@@ -44,6 +44,7 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     body_ = new QLabel(this);
     body_->setObjectName("messageBody");
     body_->setWordWrap(true);
+    body_->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     image_ = new QLabel(this);
     image_->setObjectName("messageImage");
@@ -71,7 +72,7 @@ void ChatMessageWidget::setMessage(const QString& title, const QString& body, co
         QString error;
         const QPixmap pixmap = loadPixmapFromFile(imagePath, &error);
         if (!pixmap.isNull()) {
-            image_->setPixmap(pixmap.scaled(420, 260, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            image_->setPixmap(pixmap.scaled(520, 300, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         } else {
             image_->setText("图片已缓存，但暂时无法读取：\n" + imagePath + "\n\nQt 错误：" + error);
         }

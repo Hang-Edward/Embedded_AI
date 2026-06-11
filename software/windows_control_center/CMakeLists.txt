@@ -15,6 +15,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_executable(embedded_ai_control_center WIN32
+    resources.qrc
+    app_icon.rc
     src/main.cpp
     src/AppConfig.cpp
     src/BasePage.cpp

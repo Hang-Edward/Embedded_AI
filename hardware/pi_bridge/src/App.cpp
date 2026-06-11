@@ -109,9 +109,9 @@ int App::runDemo() {
 
 int App::runButtonMode() {
     console_.info("\nRotary voice assistant mode\n");
-    console_.info("Press the rotary encoder button to start voice input.\n");
+    console_.info("Press the NUCLEO blue button to start voice input.\n");
     console_.info("Rotate left/right to browse AI reply history on the LCD.\n");
-    console_.info("The NUCLEO blue button is kept as a backup trigger.\n");
+    console_.info("The rotary encoder is used only for browsing AI reply history.\n");
     console_.info("If speech is empty or ASR fails, the system will describe the current scene by default.\n");
     console_.info("Use Ctrl+C to stop this program.\n");
     hud_.showStatus(HudStatus::Ready, "系统就绪，可以按旋钮开始语音输入。");
@@ -130,14 +130,16 @@ int App::runButtonMode() {
             continue;
         }
 
-        if (rotaryEvent == RotaryEvent::Pressed || waitForButtonEvent()) {
-            console_.info("\nTrigger received. Starting voice command flow.\n");
+        const bool rotaryPressed = rotaryEvent == RotaryEvent::Pressed;
+        const bool nucleoPressed = !rotaryPressed && waitForButtonEvent();
+        if (rotaryPressed || nucleoPressed) {
+            console_.info(rotaryPressed
+                    ? "\nRotary button pressed. Starting voice command flow.\n"
+                    : "\nNUCLEO blue button pressed. Starting voice command flow.\n");
             hud_.showStatus(HudStatus::Busy, "已触发，准备录音。");
             const uint32_t recordId = analyzeVoiceCommand();
-            if (recordId == 0U) {
-                hud_.showError("AI 流程失败，请查看日志。");
-            }
-            console_.info("\nReady. Press the rotary encoder button again for the next command.\n");
+            (void)recordId;
+            console_.info("\nReady. Press the NUCLEO blue button again for the next command.\n");
         }
     }
 }
@@ -346,7 +348,8 @@ uint32_t App::analyzeVoiceCommand() {
 }
 
 bool App::waitForButtonEvent() {
-    const std::string events = hardware_.readEvents(50);
+    // 中文注释：缩短串口等待，避免阻塞旋钮相位采样。
+    const std::string events = hardware_.readEvents(2);
     return events.find("EVENT BUTTON PRESSED") != std::string::npos;
 }
 

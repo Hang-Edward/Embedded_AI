@@ -13,6 +13,8 @@
 #include <QStandardPaths>
 #include <QtGlobal>
 
+#include <algorithm>
+
 namespace {
 constexpr int kVoiceSeconds = 5;
 
@@ -417,20 +419,22 @@ void ConnectionManager::parseConversationRecords() {
     }
 
     const QString lower = state_.logText.toLower();
-    const QString marker = "button event received";
     QList<int> starts;
-    int pos = 0;
-    while (true) {
-        const int found = lower.indexOf(marker, pos);
-        if (found < 0) {
-            break;
+    for (const QString& marker : {"button event received", "trigger received", "rotary button pressed", "nucleo blue button pressed"}) {
+        int pos = 0;
+        while (true) {
+            const int found = lower.indexOf(marker, pos);
+            if (found < 0) {
+                break;
+            }
+            starts << found;
+            pos = found + marker.size();
         }
-        starts << found;
-        pos = found + marker.size();
     }
     if (starts.isEmpty()) {
         return;
     }
+    std::sort(starts.begin(), starts.end());
 
     QSet<QString> seenIds;
     for (int i = starts.size() - 1; i >= 0 && state_.recentRecords.size() < 10; --i) {
@@ -514,7 +518,10 @@ QString ConnectionManager::formatSessionFlow(const QString& sessionText) const {
         if (line.isEmpty()) {
             continue;
         }
-        if (line.contains("Button event received", Qt::CaseInsensitive)) {
+        if (line.contains("Button event received", Qt::CaseInsensitive)
+            || line.contains("Trigger received", Qt::CaseInsensitive)
+            || line.contains("Rotary button pressed", Qt::CaseInsensitive)
+            || line.contains("NUCLEO blue button pressed", Qt::CaseInsensitive)) {
             continue;
         } else if (line.contains("Recording voice command", Qt::CaseInsensitive)) {
             continue;
@@ -536,7 +543,8 @@ QString ConnectionManager::formatSessionFlow(const QString& sessionText) const {
             pendingType = line.mid(QString("Type=").size()).trimmed();
         } else if (line.startsWith("Risk=", Qt::CaseInsensitive)) {
             out << "🛡️  风险等级    " + line.mid(QString("Risk=").size()).trimmed();
-        } else if (line.contains("Ready. Press the NUCLEO blue button", Qt::CaseInsensitive)) {
+        } else if (line.contains("Ready. Press the NUCLEO blue button", Qt::CaseInsensitive)
+            || line.contains("Ready. Press the rotary encoder button", Qt::CaseInsensitive)) {
             continue;
         }
     }
@@ -548,18 +556,19 @@ QString ConnectionManager::formatSessionFlow(const QString& sessionText) const {
 
 QString ConnectionManager::latestSessionText(int* buttonEventCount) const {
     const QString lower = state_.logText.toLower();
-    const QString marker = "button event received";
     int count = 0;
-    int pos = 0;
     int last = -1;
-    while (true) {
-        const int found = lower.indexOf(marker, pos);
-        if (found < 0) {
-            break;
+    for (const QString& marker : {"button event received", "trigger received", "rotary button pressed", "nucleo blue button pressed"}) {
+        int pos = 0;
+        while (true) {
+            const int found = lower.indexOf(marker, pos);
+            if (found < 0) {
+                break;
+            }
+            ++count;
+            last = qMax(last, found);
+            pos = found + marker.size();
         }
-        ++count;
-        last = found;
-        pos = found + marker.size();
     }
     if (buttonEventCount) {
         *buttonEventCount = count;
@@ -576,8 +585,11 @@ void ConnectionManager::updateAssistantStatus(bool serviceOk, int buttonEventCou
     }
 
     const QString lower = latestSession.toLower();
-    const int ready = lower.lastIndexOf("ready. press the nucleo blue button");
-    const int received = lower.lastIndexOf("button event received");
+    const int ready = qMax(lower.lastIndexOf("ready. press the nucleo blue button"),
+        lower.lastIndexOf("ready. press the rotary encoder button"));
+    const int received = qMax(
+        qMax(lower.lastIndexOf("button event received"), lower.lastIndexOf("trigger received")),
+        qMax(lower.lastIndexOf("rotary button pressed"), lower.lastIndexOf("nucleo blue button pressed")));
     const int recording = lower.lastIndexOf("recording voice command");
     const int audioRecorded = lower.lastIndexOf("audio recorded:");
     const int recognizing = lower.lastIndexOf("recognizing speech");
