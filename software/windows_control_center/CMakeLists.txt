@@ -10,6 +10,7 @@ if (NOT Qt6_FOUND)
 endif()
 
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -24,6 +25,7 @@ add_executable(embedded_ai_control_center WIN32
     src/ChatPage.cpp
     src/ConnectionManager.cpp
     src/ConnectionState.cpp
+    src/GlassSurface.cpp
     src/HardwarePage.cpp
     src/HistoryPage.cpp
     src/LogsPage.cpp

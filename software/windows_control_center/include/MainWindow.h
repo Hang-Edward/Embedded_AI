@@ -44,12 +44,10 @@ private:
     QLabel* connectionTitle_ = nullptr;
     QLabel* connectionSubtitle_ = nullptr;
     QLabel* lanWarning_ = nullptr;
-    QLabel* readyDot_ = nullptr;
-    QLabel* readyText_ = nullptr;
     QLabel* actionBanner_ = nullptr;
+    QWidget* pageSurface_ = nullptr;
     QStackedWidget* stack_ = nullptr;
     QMap<QString, QPushButton*> navButtons_;
-    QPushButton* watchButton_ = nullptr;
     QTimer* liveTimer_ = nullptr;
     bool watchLive_ = true;
 

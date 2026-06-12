@@ -2,6 +2,7 @@
 
 #include "CameraPage.h"
 #include "ChatPage.h"
+#include "GlassSurface.h"
 #include "HardwarePage.h"
 #include "HistoryPage.h"
 #include "LogsPage.h"
@@ -29,7 +30,7 @@ QString statusTextFor(const ConnectionState& state) {
     }
     switch (state.assistantStatus) {
     case AssistantStatus::Ready:
-        return "绿灯：系统就绪，现在可以按旋钮触发";
+        return "绿灯：系统就绪，现在可以按 NUCLEO 蓝色按钮触发";
     case AssistantStatus::Listening:
         return state.voiceCountdownSeconds > 0
             ? QString("黄灯：正在录音，还剩 %1 秒").arg(state.voiceCountdownSeconds)
@@ -78,7 +79,7 @@ void MainWindow::resizeEvent(QResizeEvent* event) {
 }
 
 void MainWindow::buildUi() {
-    central_ = new QWidget(this);
+    central_ = new BackgroundWidget(this);
     central_->setObjectName("central");
     setCentralWidget(central_);
 
@@ -96,7 +97,7 @@ void MainWindow::buildUi() {
 }
 
 void MainWindow::buildSidebar(QHBoxLayout* root) {
-    sidebar_ = new QWidget(this);
+    sidebar_ = new GlassSurface(GlassSurface::Tone::Sidebar, central_);
     sidebar_->setObjectName("sidebar");
     sidebar_->setFixedWidth(232);
     auto* side = new QVBoxLayout(sidebar_);
@@ -116,40 +117,19 @@ void MainWindow::buildSidebar(QHBoxLayout* root) {
     side->addWidget(makeNavButton("settings", "设置"));
     side->addStretch(1);
 
-    auto addAction = [this, side](const QString& text, auto slot) {
-        auto* button = new QPushButton(text, sidebar_);
-        button->setObjectName("primaryButton");
-        QObject::connect(button, &QPushButton::clicked, this, slot);
-        side->addWidget(button);
-        return button;
-    };
-
-    addAction("重新连接", [this]() {
+    auto* reconnect = new QPushButton("重新连接", sidebar_);
+    reconnect->setObjectName("primaryButton");
+    QObject::connect(reconnect, &QPushButton::clicked, this, [this]() {
         settingsPage_->saveToConfig();
         connection_.reconnect();
     });
-    addAction("重启树莓派服务", [this]() {
-        settingsPage_->saveToConfig();
-        connection_.restartPiService();
-    });
-    addAction("启动服务", [this]() {
-        settingsPage_->saveToConfig();
-        connection_.startPiService();
-    });
-    addAction("停止服务", [this]() {
-        settingsPage_->saveToConfig();
-        connection_.stopPiService();
-    });
-
-    watchButton_ = addAction("实时监听：开", [this]() {
-        setWatchLive(!watchLive_);
-    });
+    side->addWidget(reconnect);
 
     root->addWidget(sidebar_);
 }
 
 void MainWindow::buildHeader(QVBoxLayout* rightSide) {
-    auto* header = new QWidget(this);
+    auto* header = new GlassSurface(GlassSurface::Tone::Elevated, central_);
     header->setObjectName("glassHeader");
     auto* layout = new QVBoxLayout(header);
     layout->setContentsMargins(22, 18, 22, 18);
@@ -160,16 +140,6 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
     connectionSubtitle_ = new QLabel("优先尝试最近一次成功 IP，然后尝试 ssh ch@172.20.10.6。", header);
     connectionSubtitle_->setObjectName("connectionSubtitle");
     connectionSubtitle_->setWordWrap(true);
-
-    auto* readyRow = new QHBoxLayout();
-    readyDot_ = new QLabel(header);
-    readyDot_->setObjectName("readyDot");
-    readyDot_->setProperty("status", "connecting");
-    readyDot_->setFixedSize(16, 16);
-    readyText_ = new QLabel("正在建立连接", header);
-    readyText_->setObjectName("readyText");
-    readyRow->addWidget(readyDot_, 0, Qt::AlignLeft);
-    readyRow->addWidget(readyText_, 1);
 
     actionBanner_ = new QLabel("正在自动检测树莓派、服务、摄像头和日志...", header);
     actionBanner_->setObjectName("actionBanner");
@@ -182,28 +152,37 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
 
     layout->addWidget(connectionTitle_);
     layout->addWidget(connectionSubtitle_);
-    layout->addLayout(readyRow);
     layout->addWidget(actionBanner_);
     layout->addWidget(lanWarning_);
     rightSide->addWidget(header);
 }
 
 void MainWindow::buildPages(QVBoxLayout* rightSide) {
-    stack_ = new QStackedWidget(this);
-    stack_->setObjectName("glassPanel");
+    pageSurface_ = new GlassSurface(GlassSurface::Tone::Regular, central_);
+    auto* surfaceLayout = new QVBoxLayout(pageSurface_);
+    surfaceLayout->setContentsMargins(0, 0, 0, 0);
+    stack_ = new TransparentStackedWidget(pageSurface_);
+    stack_->setObjectName("pageStack");
     chatPage_ = new ChatPage(stack_);
     historyPage_ = new HistoryPage(stack_);
     hardwarePage_ = new HardwarePage(stack_);
     cameraPage_ = new CameraPage(stack_);
     logsPage_ = new LogsPage(stack_);
     settingsPage_ = new SettingsPage(config_, stack_);
+    settingsPage_->setServiceActions(
+        [this]() { settingsPage_->saveToConfig(); connection_.reconnect(); },
+        [this]() { settingsPage_->saveToConfig(); connection_.restartPiService(); },
+        [this]() { settingsPage_->saveToConfig(); connection_.startPiService(); },
+        [this]() { settingsPage_->saveToConfig(); connection_.stopPiService(); },
+        [this]() { setWatchLive(!watchLive_); });
     stack_->addWidget(chatPage_);
     stack_->addWidget(historyPage_);
     stack_->addWidget(hardwarePage_);
     stack_->addWidget(cameraPage_);
     stack_->addWidget(logsPage_);
     stack_->addWidget(settingsPage_);
-    rightSide->addWidget(stack_, 1);
+    surfaceLayout->addWidget(stack_);
+    rightSide->addWidget(pageSurface_, 1);
     switchPage("chat");
 }
 
@@ -217,7 +196,17 @@ void MainWindow::switchPage(const QString& key) {
         {"settings", settingsPage_}
     };
     QWidget* page = pages.value(key, chatPage_);
+    QWidget* previous = stack_->currentWidget();
+    if (previous && previous != page) {
+        previous->setVisible(false);
+        previous->setUpdatesEnabled(false);
+    }
     stack_->setCurrentWidget(page);
+    page->setUpdatesEnabled(true);
+    page->setVisible(true);
+    page->raise();
+    pageSurface_->update();
+    stack_->update();
     for (auto it = navButtons_.begin(); it != navButtons_.end(); ++it) {
         it.value()->setProperty("active", it.key() == key);
         it.value()->style()->unpolish(it.value());
@@ -250,12 +239,7 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
     } else if (state.assistantStatus == AssistantStatus::Warning) {
         statusClass = "warning";
     }
-    readyDot_->setProperty("status", statusClass);
-    readyDot_->style()->unpolish(readyDot_);
-    readyDot_->style()->polish(readyDot_);
-
     const QString cleanStatus = statusTextFor(state);
-    readyText_->setText(cleanStatus);
     actionBanner_->setProperty("status", statusClass);
     actionBanner_->style()->unpolish(actionBanner_);
     actionBanner_->style()->polish(actionBanner_);
@@ -281,13 +265,13 @@ void MainWindow::updateResponsiveMode() {
     const bool compact = width() < 1040;
     sidebar_->setFixedWidth(compact ? 98 : 232);
     for (auto it = navButtons_.begin(); it != navButtons_.end(); ++it) {
-        it.value()->setMinimumHeight(compact ? 46 : 42);
+        it.value()->setMinimumHeight(compact ? 48 : 54);
     }
 }
 
 void MainWindow::setWatchLive(bool enabled) {
     watchLive_ = enabled;
-    watchButton_->setText(enabled ? "实时监听：开" : "实时监听：关");
+    settingsPage_->setWatchLiveState(enabled);
     if (enabled) {
         connection_.refreshNow();
         if (!liveTimer_->isActive()) {
@@ -299,8 +283,7 @@ void MainWindow::setWatchLive(bool enabled) {
 }
 
 QPushButton* MainWindow::makeNavButton(const QString& key, const QString& text) {
-    auto* button = new QPushButton(text, sidebar_);
-    button->setObjectName("navButton");
+    auto* button = new LiquidNavButton(text, sidebar_);
     button->setProperty("active", false);
     QObject::connect(button, &QPushButton::clicked, this, [this, key]() {
         switchPage(key);

@@ -1,6 +1,6 @@
 <RCC>
     <qresource prefix="/assets">
-        <file>assets/liquid_space_wallpaper.png</file>
-        <file>assets/app_icon.png</file>
+        <file alias="liquid_space_wallpaper.png">assets/liquid_space_wallpaper.png</file>
+        <file alias="app_icon.png">assets/app_icon.png</file>
     </qresource>
 </RCC>

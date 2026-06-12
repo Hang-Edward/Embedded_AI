@@ -6,40 +6,28 @@ QString Theme::styleSheet() {
     font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
     font-size: 14px;
 }
-QMainWindow, QWidget#central {
+QMainWindow {
     color: #edf6ff;
     background: #050b19;
-    border-image: url(:/assets/liquid_space_wallpaper.png) 0 0 0 0 stretch stretch;
 }
-QWidget#sidebar {
-    background: rgba(9, 18, 38, 178);
-    border-right: 1px solid rgba(180, 220, 255, 55);
+QWidget#central, QStackedWidget#pageStack, QStackedWidget#pageStack > QWidget {
+    background: transparent;
+    border: none;
 }
-QWidget#glassHeader, QWidget#glassPanel, QWidget#statusCard, QWidget#messageBubble {
-    background: rgba(13, 26, 54, 172);
-    border: 1px solid rgba(185, 222, 255, 52);
-    border-radius: 18px;
+QWidget#statusCard, QWidget#messageBubble {
+    background: rgba(19, 39, 76, 108);
+    border: 1px solid rgba(215, 239, 255, 62);
+    border-radius: 16px;
 }
 QPushButton {
     min-height: 34px;
 }
 QPushButton#navButton {
-    background: rgba(255, 255, 255, 18);
-    color: #c8daf6;
-    border: 1px solid rgba(255, 255, 255, 24);
-    border-radius: 13px;
-    padding: 11px 14px;
-    text-align: left;
-}
-QPushButton#navButton:hover {
-    background: rgba(95, 165, 255, 58);
-    color: white;
-    border-color: rgba(170, 220, 255, 95);
-}
-QPushButton#navButton[active="true"] {
-    background: rgba(74, 144, 255, 116);
-    color: white;
-    border-color: rgba(205, 235, 255, 135);
+    min-height: 52px;
+    max-height: 52px;
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 QPushButton#primaryButton {
     background: rgba(72, 145, 255, 138);
@@ -56,6 +44,36 @@ QPushButton#primaryButton:pressed {
     background: rgba(45, 110, 220, 190);
     padding-top: 10px;
     padding-left: 16px;
+}
+QPushButton#secondaryButton {
+    min-height: 38px;
+    background: rgba(255, 255, 255, 14);
+    color: #dcecff;
+    border: 1px solid rgba(195, 229, 255, 48);
+    border-radius: 12px;
+    padding: 8px 14px;
+}
+QPushButton#secondaryButton:hover {
+    background: rgba(91, 163, 255, 62);
+    border-color: rgba(198, 232, 255, 92);
+}
+QPushButton#secondaryButton:pressed {
+    background: rgba(60, 126, 225, 104);
+}
+QGroupBox#settingsGroup {
+    color: #f3f8ff;
+    font-weight: 800;
+    background: rgba(9, 24, 52, 72);
+    border: 1px solid rgba(205, 234, 255, 45);
+    border-radius: 16px;
+    margin-top: 12px;
+    padding: 16px 12px 12px 12px;
+}
+QGroupBox#settingsGroup::title {
+    subcontrol-origin: margin;
+    left: 16px;
+    padding: 0 7px;
+    color: #dcecff;
 }
 QLabel#appTitle {
     font-size: 20px;
@@ -87,7 +105,7 @@ QLabel#readyDot[status="ready"] { background: #34d399; }
 QLabel#readyDot[status="busy"], QLabel#readyDot[status="warning"] { background: #fbbf24; }
 QLabel#readyDot[status="error"] { background: #fb7185; }
 QLabel#actionBanner {
-    background: rgba(25, 45, 86, 156);
+    background: rgba(25, 45, 86, 116);
     border: 1px solid rgba(170, 215, 255, 64);
     border-radius: 16px;
     color: #e6f3ff;
@@ -128,21 +146,30 @@ QLabel[level="warn"] { background: #fbbf24; border-radius: 6px; }
 QLabel[level="error"] { background: #fb7185; border-radius: 6px; }
 QLabel[level="checking"], QLabel[level="unknown"] { background: #94a3b8; border-radius: 6px; }
 QLabel#cameraPreview, QLabel#messageImage {
-    background: rgba(5, 13, 30, 150);
+    background: rgba(5, 13, 30, 92);
     border: 1px solid rgba(155, 210, 255, 50);
     border-radius: 18px;
     color: #c7d9ef;
 }
 QTextEdit#logView, QLineEdit, QComboBox {
-    background: rgba(8, 18, 38, 172);
+    background: rgba(8, 18, 38, 118);
     color: #ecf6ff;
     border: 1px solid rgba(170, 220, 255, 58);
     border-radius: 14px;
     padding: 10px;
     selection-background-color: rgba(83, 160, 255, 165);
 }
+QLineEdit, QComboBox {
+    min-height: 38px;
+    max-height: 38px;
+    padding: 2px 12px;
+}
+QComboBox::drop-down {
+    width: 34px;
+    border: none;
+}
 QListWidget#recentList {
-    background: rgba(8, 18, 38, 160);
+    background: rgba(8, 18, 38, 108);
     color: #e6f3ff;
     border: 1px solid rgba(170, 220, 255, 55);
     border-radius: 16px;
@@ -158,6 +185,17 @@ QListWidget#recentList::item:selected {
 }
 QScrollArea#chatScroll {
     border: 0;
+    background: transparent;
+}
+QScrollArea#settingsScroll,
+QScrollArea#settingsScroll::viewport,
+QWidget#settingsContent {
+    background: transparent;
+    border: none;
+}
+QScrollArea#chatScroll QWidget,
+QScrollArea#chatScroll QAbstractScrollArea,
+QScrollArea#chatScroll QAbstractScrollArea::viewport {
     background: transparent;
 }
 QScrollBar:vertical {

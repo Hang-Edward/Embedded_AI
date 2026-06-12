@@ -25,7 +25,7 @@ HealthLevel assistantLevel(AssistantStatus status) {
 QString assistantDetail(const ConnectionState& state) {
     switch (state.assistantStatus) {
     case AssistantStatus::Ready:
-        return "绿灯：系统就绪，可以按旋钮触发语音输入。";
+        return "绿灯：系统就绪，可以按 NUCLEO 蓝色按钮触发语音输入。";
     case AssistantStatus::Listening:
         return state.voiceCountdownSeconds > 0
             ? QString("黄灯：正在录音，还剩 %1 秒。").arg(state.voiceCountdownSeconds)

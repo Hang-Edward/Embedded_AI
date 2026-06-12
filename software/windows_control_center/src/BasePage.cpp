@@ -5,6 +5,8 @@
 
 BasePage::BasePage(const QString& title, const QString& subtitle, QWidget* parent)
     : QWidget(parent) {
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setAutoFillBackground(false);
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(24, 22, 24, 24);
     root->setSpacing(16);
