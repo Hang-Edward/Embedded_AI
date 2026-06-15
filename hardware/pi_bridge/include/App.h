@@ -7,7 +7,6 @@
 #include "Console.h"
 #include "HardwareBridge.h"
 #include "PiHardwareHud.h"
-#include "PiRotaryInput.h"
 #include "PrototypeDeviceSet.h"
 #include "QwenAsrService.h"
 
@@ -27,6 +26,13 @@ public:
     int runButtonMode();
 
 private:
+    enum class InputEvent {
+        None,
+        Trigger,
+        OlderReply,
+        NewerReply
+    };
+
     void printMenu() const;
     void testHardware();
     void setLed(bool enabled);
@@ -36,7 +42,7 @@ private:
     void analyzeCameraFrameMenu();
     uint32_t analyzeCurrentFrame(TaskType intent);
     uint32_t analyzeVoiceCommand();
-    bool waitForButtonEvent();
+    InputEvent waitForInputEvent();
     TaskType inferTaskTypeFromSpeech(const std::string& transcript) const;
     std::string buildVoiceVisionPrompt(const std::string& transcript, TaskType intent) const;
     SceneTask createMockTask(TaskType type) const;
@@ -55,5 +61,4 @@ private:
     QwenAsrService& asrService_;
     AuditLogStore& auditLog_;
     PiHardwareHud hud_;
-    PiRotaryInput rotary_;
 };

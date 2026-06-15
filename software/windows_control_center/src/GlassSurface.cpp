@@ -159,6 +159,17 @@ BackgroundWidget::BackgroundWidget(QWidget* parent)
     setAutoFillBackground(false);
     qApp->installEventFilter(this);
 
+    // 四角星使用归一化坐标，窗口缩放后仍能均匀分布。
+    for (int i = 0; i < 46; ++i) {
+        TwinkleStar star;
+        star.normalizedPosition = QPointF(randomBetween(0.02, 0.98), randomBetween(0.03, 0.97));
+        star.phase = randomBetween(0.0, 6.283185307);
+        star.speed = randomBetween(0.035, 0.095);
+        star.size = randomBetween(1.4, 4.2);
+        star.brightness = randomBetween(0.35, 1.0);
+        stars_.push_back(star);
+    }
+
     animationTimer_ = new QTimer(this);
     animationTimer_->setInterval(40);
     connect(animationTimer_, &QTimer::timeout, this, [this]() {
@@ -211,6 +222,12 @@ void BackgroundWidget::advanceAnimation() {
     particles_.erase(std::remove_if(particles_.begin(), particles_.end(), [](const Particle& particle) {
         return particle.life <= 0.0;
     }), particles_.end());
+    for (TwinkleStar& star : stars_) {
+        star.phase += star.speed;
+        if (star.phase > 6.283185307) {
+            star.phase -= 6.283185307;
+        }
+    }
     update();
 }
 
@@ -267,6 +284,37 @@ void BackgroundWidget::paintEvent(QPaintEvent* event) {
         painter.setPen(Qt::NoPen);
         painter.setBrush(QColor(235, 249, 255, static_cast<int>(meteor.opacity * 220)));
         painter.drawEllipse(meteor.position, 3.0, 3.0);
+    }
+
+    for (const TwinkleStar& star : stars_) {
+        const qreal pulse = qPow(qMax<qreal>(0.0, qSin(star.phase)), 5.0);
+        if (pulse < 0.025) {
+            continue;
+        }
+        const QPointF center(star.normalizedPosition.x() * width(), star.normalizedPosition.y() * height());
+        const qreal radius = star.size * (0.68 + pulse * 1.35);
+        const int alpha = static_cast<int>((28.0 + pulse * 210.0) * star.brightness);
+
+        QPainterPath sparkle;
+        sparkle.moveTo(center.x(), center.y() - radius * 2.8);
+        sparkle.lineTo(center.x() + radius * 0.34, center.y() - radius * 0.34);
+        sparkle.lineTo(center.x() + radius * 2.8, center.y());
+        sparkle.lineTo(center.x() + radius * 0.34, center.y() + radius * 0.34);
+        sparkle.lineTo(center.x(), center.y() + radius * 2.8);
+        sparkle.lineTo(center.x() - radius * 0.34, center.y() + radius * 0.34);
+        sparkle.lineTo(center.x() - radius * 2.8, center.y());
+        sparkle.lineTo(center.x() - radius * 0.34, center.y() - radius * 0.34);
+        sparkle.closeSubpath();
+
+        QRadialGradient starGlow(center, radius * 4.2);
+        starGlow.setColorAt(0.0, QColor(241, 251, 255, alpha));
+        starGlow.setColorAt(0.30, QColor(156, 218, 255, alpha / 2));
+        starGlow.setColorAt(1.0, QColor(91, 151, 255, 0));
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(starGlow);
+        painter.drawEllipse(center, radius * 4.2, radius * 4.2);
+        painter.setBrush(QColor(242, 252, 255, qMin(245, alpha + 25)));
+        painter.drawPath(sparkle);
     }
 
     for (const Particle& particle : particles_) {

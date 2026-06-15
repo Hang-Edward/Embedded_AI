@@ -28,6 +28,9 @@
 
 #define LED_PIN       5U
 #define BUTTON_PIN    13U
+#define KEY_A_PIN     0U
+#define KEY_B_PIN     1U
+#define KEY_C_PIN     4U
 #define RXNE          (1U << 5)
 #define TXE           (1U << 7)
 
@@ -102,6 +105,10 @@ static int uart_try_getc(char *out) {
 
 static int button_pressed(void) {
     return (GPIOC_IDR & (1U << BUTTON_PIN)) == 0U;
+}
+
+static int key_pressed(uint32_t pin) {
+    return (REG32(GPIOA_BASE + 0x10) & (1U << pin)) != 0U;
 }
 
 static int streq(const char *a, const char *b) {
@@ -211,6 +218,17 @@ static void clock_gpio_uart_init(void) {
     GPIOA_MODER &= ~(3U << (LED_PIN * 2U));
     GPIOA_MODER |=  (1U << (LED_PIN * 2U));
 
+    /* PA0/A0、PA1/A1、PA4/A2 = 三键输入；模块使用 3.3V，按下时输出高电平。 */
+    GPIOA_MODER &= ~((3U << (KEY_A_PIN * 2U))
+        | (3U << (KEY_B_PIN * 2U))
+        | (3U << (KEY_C_PIN * 2U)));
+    GPIOA_PUPDR &= ~((3U << (KEY_A_PIN * 2U))
+        | (3U << (KEY_B_PIN * 2U))
+        | (3U << (KEY_C_PIN * 2U)));
+    GPIOA_PUPDR |= (2U << (KEY_A_PIN * 2U))
+        | (2U << (KEY_B_PIN * 2U))
+        | (2U << (KEY_C_PIN * 2U));
+
     /* PC13 = blue user button B1, input with pull-up. Pressed reads low. */
     GPIOC_MODER &= ~(3U << (BUTTON_PIN * 2U));
     GPIOC_PUPDR &= ~(3U << (BUTTON_PIN * 2U));
@@ -268,21 +286,48 @@ static void poll_button_event(uint8_t *last_button, uint8_t *button_lock) {
     *last_button = now_pressed;
 }
 
+static void poll_key_event(uint32_t pin,
+                           uint8_t *last_state,
+                           uint8_t *key_lock,
+                           const char *event_text) {
+    const uint8_t now_pressed = key_pressed(pin) ? 1U : 0U;
+    if (now_pressed && !(*last_state) && !(*key_lock)) {
+        delay(70000);
+        if (key_pressed(pin)) {
+            uart_puts(event_text);
+            *key_lock = 1U;
+        }
+    }
+    if (!now_pressed) {
+        *key_lock = 0U;
+    }
+    *last_state = now_pressed;
+}
+
 static void app_main(void) {
     char buffer[80];
     uint32_t len = 0U;
     uint8_t last_button = 0U;
     uint8_t button_lock = 0U;
+    uint8_t last_key_a = 0U;
+    uint8_t last_key_b = 0U;
+    uint8_t last_key_c = 0U;
+    uint8_t key_a_lock = 0U;
+    uint8_t key_b_lock = 0U;
+    uint8_t key_c_lock = 0U;
 
     clock_gpio_uart_init();
     led_pulse();
     uart_puts("\r\nNUCLEO-F446RE AI BRIDGE READY\r\n");
     uart_puts("Commands: PING, LED:ON, LED:OFF, BUZZER:ON, VIB:ON, OLED:TEXT=..., STATUS?\r\n");
-    uart_puts("Events: EVENT BUTTON PRESSED\r\n");
+    uart_puts("Events: EVENT BUTTON PRESSED, EVENT KEY A/B/C\r\n");
 
     while (1) {
         poll_uart_command(buffer, &len);
         poll_button_event(&last_button, &button_lock);
+        poll_key_event(KEY_A_PIN, &last_key_a, &key_a_lock, "EVENT KEY A\r\n");
+        poll_key_event(KEY_B_PIN, &last_key_b, &key_b_lock, "EVENT KEY B\r\n");
+        poll_key_event(KEY_C_PIN, &last_key_c, &key_c_lock, "EVENT KEY C\r\n");
     }
 }
 

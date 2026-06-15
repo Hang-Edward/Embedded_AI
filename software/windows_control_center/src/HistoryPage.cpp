@@ -81,7 +81,7 @@ void HistoryPage::setRecords(const ConnectionState& state) {
 
     if (records_.isEmpty()) {
         image_->setPixmap(QPixmap());
-        image_->setText("暂无历史图片。请按一次旋钮，等待 AI 完成分析。");
+        image_->setText("暂无历史图片。请按一次对话触发键，等待 AI 完成分析。");
         detail_->setPlainText("暂无成功历史记录。");
         return;
     }

@@ -14,9 +14,14 @@ QWidget#central, QStackedWidget#pageStack, QStackedWidget#pageStack > QWidget {
     background: transparent;
     border: none;
 }
-QWidget#statusCard, QWidget#messageBubble {
+QWidget#statusCard {
     background: rgba(19, 39, 76, 108);
     border: 1px solid rgba(215, 239, 255, 62);
+    border-radius: 16px;
+}
+QWidget#messageBubble {
+    background: rgba(5, 13, 30, 218);
+    border: 1px solid rgba(133, 191, 238, 72);
     border-radius: 16px;
 }
 QPushButton {
@@ -199,12 +204,32 @@ QScrollArea#chatScroll QAbstractScrollArea::viewport {
     background: transparent;
 }
 QScrollBar:vertical {
-    background: transparent;
-    width: 10px;
+    background: rgba(4, 12, 29, 105);
+    width: 13px;
+    margin: 5px 2px 5px 2px;
+    border: 1px solid rgba(151, 207, 255, 28);
+    border-radius: 6px;
 }
 QScrollBar::handle:vertical {
-    background: rgba(175, 220, 255, 75);
+    min-height: 44px;
+    background: rgba(117, 187, 255, 132);
+    border: 1px solid rgba(220, 243, 255, 92);
     border-radius: 5px;
+}
+QScrollBar::handle:vertical:hover {
+    background: rgba(143, 207, 255, 185);
+    border-color: rgba(235, 249, 255, 145);
+}
+QScrollBar::handle:vertical:pressed {
+    background: rgba(91, 164, 242, 218);
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+    background: transparent;
+    border: none;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
 }
 )QSS";
 }

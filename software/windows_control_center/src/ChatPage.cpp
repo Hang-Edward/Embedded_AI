@@ -8,7 +8,7 @@
 #include <QVBoxLayout>
 
 ChatPage::ChatPage(QWidget* parent)
-    : BasePage("实时对话", "按下 NUCLEO 蓝色按钮后，语音输入、拍照画面和 AI 回复会像网页版 LLM 对话一样显示在这里。", parent) {
+    : BasePage("实时对话", "按下三键键盘 K-B 后，语音输入、拍照画面和 AI 回复会像网页版 LLM 对话一样显示在这里。", parent) {
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setObjectName("chatScroll");
@@ -42,7 +42,7 @@ void ChatPage::appendDemoConversation() {
     const int insertAt = qMax(0, messages_->count() - 1);
     auto* system = new ChatMessageWidget(ChatMessageWidget::Role::System, this);
     system->setMessage("等待硬件触发",
-        "连接成功后，按下 NUCLEO 蓝色按钮即可开始 5 秒语音输入。完成后这里会显示摄像头画面、识别流程和 AI 回答。");
+        "连接成功后，按下三键键盘 K-B 即可开始 5 秒语音输入。完成后这里会显示摄像头画面、识别流程和 AI 回答。");
     messages_->insertWidget(insertAt, system);
 }
 

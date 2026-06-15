@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07152f"/><stop offset="1" stop-color="#102a55"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1200" height="680" rx="28" fill="url(#bg)"/>
+  <text x="600" y="62" text-anchor="middle" fill="#fff" font-family="Microsoft YaHei, sans-serif" font-size="30" font-weight="700">三键键盘连接 NUCLEO-F446RE</text>
+  <rect x="80" y="120" width="360" height="470" rx="26" fill="#111d33" stroke="#8ad4ff" stroke-width="2"/>
+  <text x="260" y="164" text-anchor="middle" fill="#dff5ff" font-family="sans-serif" font-size="24" font-weight="700">三键模块</text>
+  <rect x="135" y="195" width="250" height="92" rx="18" fill="#32a9e8"/><text x="260" y="252" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="25">K-A  左翻页</text>
+  <rect x="135" y="305" width="250" height="92" rx="18" fill="#e99bc4"/><text x="260" y="362" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="25">K-B  触发对话</text>
+  <rect x="135" y="415" width="250" height="92" rx="18" fill="#8cdcc4"/><text x="260" y="472" text-anchor="middle" fill="#073229" font-family="sans-serif" font-size="25">K-C  右翻页</text>
+  <text x="260" y="550" text-anchor="middle" fill="#ffda7d" font-family="sans-serif" font-size="20">VCC = 3.3V · GND = 公共地</text>
+  <rect x="760" y="120" width="360" height="470" rx="26" fill="#e8f0e8" stroke="#93c5fd" stroke-width="3"/>
+  <text x="940" y="164" text-anchor="middle" fill="#10233d" font-family="sans-serif" font-size="24" font-weight="700">NUCLEO-F446RE</text>
+  <g font-family="sans-serif" font-size="22" font-weight="700">
+    <rect x="830" y="205" width="220" height="58" rx="12" fill="#dbeafe" stroke="#2563eb"/><text x="940" y="242" text-anchor="middle" fill="#12316a">A0 / PA0</text>
+    <rect x="830" y="300" width="220" height="58" rx="12" fill="#fce7f3" stroke="#db2777"/><text x="940" y="337" text-anchor="middle" fill="#78123f">A1 / PA1</text>
+    <rect x="830" y="395" width="220" height="58" rx="12" fill="#d1fae5" stroke="#059669"/><text x="940" y="432" text-anchor="middle" fill="#064e3b">A2 / PA4</text>
+    <rect x="830" y="490" width="98" height="58" rx="12" fill="#fde68a" stroke="#ca8a04"/><text x="879" y="527" text-anchor="middle" fill="#713f12">3V3</text>
+    <rect x="952" y="490" width="98" height="58" rx="12" fill="#cbd5e1" stroke="#475569"/><text x="1001" y="527" text-anchor="middle" fill="#172033">GND</text>
+  </g>
+  <g fill="none" stroke-width="7" stroke-linecap="round" filter="url(#glow)">
+    <path d="M440 240 C570 240 650 234 830 234" stroke="#35b8ff"/><path d="M440 350 C570 350 650 329 830 329" stroke="#f0a4cb"/><path d="M440 460 C570 460 650 424 830 424" stroke="#76e2bf"/>
+    <path d="M390 535 C590 610 690 519 830 519" stroke="#ffd75e"/><path d="M390 565 C610 650 780 550 952 519" stroke="#9aa8bc"/>
+  </g>
+  <text x="600" y="640" text-anchor="middle" fill="#bdd9f2" font-family="Microsoft YaHei, sans-serif" font-size="20">使用 5 根母对母杜邦线；接线时断电；VCC 只接 3V3</text>
+</svg>

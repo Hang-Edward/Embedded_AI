@@ -3,7 +3,6 @@
 
 BCM pins:
 - Traffic light: G=GPIO17, Y=GPIO27, R=GPIO22, GND=GND
-- Rotary encoder: A=GPIO5, B=GPIO6, C/SW=GPIO16
 - ST7735 TFT: SPI0 MOSI/SCLK/CE0 plus RES=GPIO25, DC=GPIO24, BL=GPIO18
 """
 
@@ -228,7 +227,7 @@ def draw_screen(status: str, text: str, page: int | None = None) -> None:
     if status == "reply":
         body = compact_reply(text)
     elif status == "ready":
-        body = compact_status(text, "系统就绪，可以按旋钮开始语音输入。")
+        body = compact_status(text, "系统就绪，可以按触发按键开始语音输入。")
     elif status == "busy":
         body = compact_status(text, "AI 正在处理中，请稍等。")
     else:

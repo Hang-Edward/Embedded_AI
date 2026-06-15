@@ -49,7 +49,7 @@ if (-not (Test-Path $exe)) {
 }
 
 New-Item -ItemType Directory -Force -Path $distPath | Out-Null
-Get-ChildItem -LiteralPath $distPath -Force | Remove-Item -Recurse -Force
+# 保留部署目录并覆盖同名文件，避免构建脚本清空用户可能放入的辅助文件。
 Copy-Item $exe $distPath -Force
 
 $distExe = Join-Path $distPath "embedded_ai_control_center.exe"
@@ -86,6 +86,15 @@ foreach ($dllName in $dllNames) {
         Copy-Item $source $distPath -Force
         ++$copied
     }
+}
+
+# 某些 MSYS2 windeployqt 版本会在扫描阶段保留部署目录中的旧主程序。
+# 最后再次覆盖 exe，并以哈希校验，确保启动的一定是本次构建版本。
+Copy-Item $exe $distExe -Force
+$buildHash = (Get-FileHash -Algorithm SHA256 $exe).Hash
+$distHash = (Get-FileHash -Algorithm SHA256 $distExe).Hash
+if ($buildHash -ne $distHash) {
+    throw "Deployment verification failed: built and deployed executable hashes differ."
 }
 
 Write-Host "Copied MSYS2 runtime DLLs: $copied newly copied, $($dllNames.Count) required"

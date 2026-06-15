@@ -420,7 +420,7 @@ void ConnectionManager::parseConversationRecords() {
 
     const QString lower = state_.logText.toLower();
     QList<int> starts;
-    for (const QString& marker : {"button event received", "trigger received", "rotary button pressed", "nucleo blue button pressed"}) {
+    for (const QString& marker : {"button event received", "trigger received", "conversation trigger received", "nucleo blue button pressed"}) {
         int pos = 0;
         while (true) {
             const int found = lower.indexOf(marker, pos);
@@ -520,7 +520,7 @@ QString ConnectionManager::formatSessionFlow(const QString& sessionText) const {
         }
         if (line.contains("Button event received", Qt::CaseInsensitive)
             || line.contains("Trigger received", Qt::CaseInsensitive)
-            || line.contains("Rotary button pressed", Qt::CaseInsensitive)
+            || line.contains("Conversation trigger received", Qt::CaseInsensitive)
             || line.contains("NUCLEO blue button pressed", Qt::CaseInsensitive)) {
             continue;
         } else if (line.contains("Recording voice command", Qt::CaseInsensitive)) {
@@ -543,8 +543,7 @@ QString ConnectionManager::formatSessionFlow(const QString& sessionText) const {
             pendingType = line.mid(QString("Type=").size()).trimmed();
         } else if (line.startsWith("Risk=", Qt::CaseInsensitive)) {
             out << "🛡️  风险等级    " + line.mid(QString("Risk=").size()).trimmed();
-        } else if (line.contains("Ready. Press the NUCLEO blue button", Qt::CaseInsensitive)
-            || line.contains("Ready. Press the rotary encoder button", Qt::CaseInsensitive)) {
+        } else if (line.contains("Ready. Press the NUCLEO blue button", Qt::CaseInsensitive)) {
             continue;
         }
     }
@@ -558,7 +557,7 @@ QString ConnectionManager::latestSessionText(int* buttonEventCount) const {
     const QString lower = state_.logText.toLower();
     int count = 0;
     int last = -1;
-    for (const QString& marker : {"button event received", "trigger received", "rotary button pressed", "nucleo blue button pressed"}) {
+    for (const QString& marker : {"button event received", "trigger received", "conversation trigger received", "nucleo blue button pressed"}) {
         int pos = 0;
         while (true) {
             const int found = lower.indexOf(marker, pos);
@@ -585,11 +584,11 @@ void ConnectionManager::updateAssistantStatus(bool serviceOk, int buttonEventCou
     }
 
     const QString lower = latestSession.toLower();
-    const int ready = qMax(lower.lastIndexOf("ready. press the nucleo blue button"),
-        lower.lastIndexOf("ready. press the rotary encoder button"));
+    const int ready = lower.lastIndexOf("ready. press the nucleo blue button");
     const int received = qMax(
-        qMax(lower.lastIndexOf("button event received"), lower.lastIndexOf("trigger received")),
-        qMax(lower.lastIndexOf("rotary button pressed"), lower.lastIndexOf("nucleo blue button pressed")));
+        qMax(qMax(lower.lastIndexOf("button event received"), lower.lastIndexOf("trigger received")),
+             lower.lastIndexOf("conversation trigger received")),
+        lower.lastIndexOf("nucleo blue button pressed"));
     const int recording = lower.lastIndexOf("recording voice command");
     const int audioRecorded = lower.lastIndexOf("audio recorded:");
     const int recognizing = lower.lastIndexOf("recognizing speech");
@@ -603,7 +602,7 @@ void ConnectionManager::updateAssistantStatus(bool serviceOk, int buttonEventCou
 
     if (latestSession.isEmpty() || (ready >= received && ready >= recorded && ready >= recording)) {
         state_.assistantStatus = AssistantStatus::Ready;
-        state_.assistantStatusText = "✅ 已就绪：现在可以按 NUCLEO 蓝色按钮";
+        state_.assistantStatusText = "✅ 已就绪：现在可以按三键键盘 K-B";
         state_.voiceCountdownSeconds = 0;
         return;
     }
@@ -638,7 +637,7 @@ void ConnectionManager::updateAssistantStatus(bool serviceOk, int buttonEventCou
     }
 
     state_.assistantStatus = AssistantStatus::Ready;
-    state_.assistantStatusText = "✅ 已就绪：现在可以按 NUCLEO 蓝色按钮";
+    state_.assistantStatusText = "✅ 已就绪：现在可以按三键键盘 K-B";
     state_.voiceCountdownSeconds = 0;
 }
 

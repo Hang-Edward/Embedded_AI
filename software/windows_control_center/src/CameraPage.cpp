@@ -32,7 +32,7 @@ CameraPage::CameraPage(QWidget* parent)
 
 void CameraPage::setImagePath(const QString& imagePath) {
     if (imagePath.isEmpty()) {
-        setStatusText("尚未拉取 latest-frame.jpg。\n请按一次 NUCLEO 蓝色按钮，等待 AI 完成分析。");
+        setStatusText("尚未拉取 latest-frame.jpg。\n请按一次三键键盘 K-B，等待 AI 完成分析。");
         return;
     }
 

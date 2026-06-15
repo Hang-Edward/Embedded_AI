@@ -40,8 +40,7 @@ App::App(Console& console,
       audioRecorder_(audioRecorder),
       asrService_(asrService),
       auditLog_(auditLog),
-      hud_("."),
-      rotary_() {
+      hud_(".") {
 }
 
 int App::runInteractive() {
@@ -108,34 +107,28 @@ int App::runDemo() {
 }
 
 int App::runButtonMode() {
-    console_.info("\nRotary voice assistant mode\n");
-    console_.info("Press the NUCLEO blue button to start voice input.\n");
-    console_.info("Rotate left/right to browse AI reply history on the LCD.\n");
-    console_.info("The rotary encoder is used only for browsing AI reply history.\n");
+    console_.info("\nButton voice assistant mode\n");
+    console_.info("Press keypad K-B or the NUCLEO blue button to start voice input.\n");
+    console_.info("Use keypad K-A / K-C to browse older / newer AI replies.\n");
     console_.info("If speech is empty or ASR fails, the system will describe the current scene by default.\n");
     console_.info("Use Ctrl+C to stop this program.\n");
-    hud_.showStatus(HudStatus::Ready, "系统就绪，可以按旋钮开始语音输入。");
+    hud_.showStatus(HudStatus::Ready, "系统就绪，可以按 K-B 开始语音输入。");
     hardware_.readEvents(200);
 
     while (true) {
-        const RotaryEvent rotaryEvent = rotary_.poll();
-        if (rotaryEvent == RotaryEvent::CounterClockwise) {
-            console_.info("Rotary: older reply page.\n");
+        const InputEvent event = waitForInputEvent();
+        if (event == InputEvent::OlderReply) {
+            console_.info("Keypad K-A pressed. Showing older AI reply.\n");
             hud_.showOlderReplyPage();
             continue;
         }
-        if (rotaryEvent == RotaryEvent::Clockwise) {
-            console_.info("Rotary: newer reply page.\n");
+        if (event == InputEvent::NewerReply) {
+            console_.info("Keypad K-C pressed. Showing newer AI reply.\n");
             hud_.showNewerReplyPage();
             continue;
         }
-
-        const bool rotaryPressed = rotaryEvent == RotaryEvent::Pressed;
-        const bool nucleoPressed = !rotaryPressed && waitForButtonEvent();
-        if (rotaryPressed || nucleoPressed) {
-            console_.info(rotaryPressed
-                    ? "\nRotary button pressed. Starting voice command flow.\n"
-                    : "\nNUCLEO blue button pressed. Starting voice command flow.\n");
+        if (event == InputEvent::Trigger) {
+            console_.info("\nConversation trigger received. Starting voice command flow.\n");
             hud_.showStatus(HudStatus::Busy, "已触发，准备录音。");
             const uint32_t recordId = analyzeVoiceCommand();
             (void)recordId;
@@ -347,10 +340,20 @@ uint32_t App::analyzeVoiceCommand() {
     return entry.id;
 }
 
-bool App::waitForButtonEvent() {
-    // 中文注释：缩短串口等待，避免阻塞旋钮相位采样。
-    const std::string events = hardware_.readEvents(2);
-    return events.find("EVENT BUTTON PRESSED") != std::string::npos;
+App::InputEvent App::waitForInputEvent() {
+    // 采用短轮询，让状态显示和退出信号保持灵敏。
+    const std::string events = hardware_.readEvents(20);
+    if (events.find("EVENT KEY A") != std::string::npos) {
+        return InputEvent::OlderReply;
+    }
+    if (events.find("EVENT KEY C") != std::string::npos) {
+        return InputEvent::NewerReply;
+    }
+    if (events.find("EVENT KEY B") != std::string::npos
+        || events.find("EVENT BUTTON PRESSED") != std::string::npos) {
+        return InputEvent::Trigger;
+    }
+    return InputEvent::None;
 }
 
 TaskType App::inferTaskTypeFromSpeech(const std::string& transcript) const {

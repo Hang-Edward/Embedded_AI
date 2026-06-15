@@ -30,7 +30,7 @@ QString statusTextFor(const ConnectionState& state) {
     }
     switch (state.assistantStatus) {
     case AssistantStatus::Ready:
-        return "绿灯：系统就绪，现在可以按 NUCLEO 蓝色按钮触发";
+        return "绿灯：系统就绪，现在可以按三键键盘 K-B 触发";
     case AssistantStatus::Listening:
         return state.voiceCountdownSeconds > 0
             ? QString("黄灯：正在录音，还剩 %1 秒").arg(state.voiceCountdownSeconds)

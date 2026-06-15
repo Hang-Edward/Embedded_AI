@@ -35,6 +35,8 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
 
     auto* bubble = new QWidget(this);
     bubble->setObjectName("messageBubble");
+    // 普通 QWidget 默认可能不绘制 QSS 背景，显式开启后深色气泡才能真正生效。
+    bubble->setAttribute(Qt::WA_StyledBackground, true);
     auto* bubbleLayout = new QVBoxLayout(bubble);
     bubbleLayout->setContentsMargins(16, 14, 16, 14);
     bubbleLayout->setSpacing(8);

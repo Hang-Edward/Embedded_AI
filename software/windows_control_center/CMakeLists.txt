@@ -48,3 +48,11 @@ target_link_libraries(embedded_ai_control_center PRIVATE
 target_compile_definitions(embedded_ai_control_center PRIVATE
     QT_NO_KEYWORDS
 )
+
+if (WIN32 AND TARGET Qt6::windeployqt)
+    # 让 build-qt 目录中的 exe 也能直接运行，避免误启动时加载到错误版本的 Qt DLL。
+    add_custom_command(TARGET embedded_ai_control_center POST_BUILD
+        COMMAND Qt6::windeployqt --release --no-translations $<TARGET_FILE:embedded_ai_control_center>
+        COMMENT "Deploying Qt runtime beside the build executable"
+    )
+endif()

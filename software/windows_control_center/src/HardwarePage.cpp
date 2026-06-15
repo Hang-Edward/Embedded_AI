@@ -25,7 +25,7 @@ HealthLevel assistantLevel(AssistantStatus status) {
 QString assistantDetail(const ConnectionState& state) {
     switch (state.assistantStatus) {
     case AssistantStatus::Ready:
-        return "绿灯：系统就绪，可以按 NUCLEO 蓝色按钮触发语音输入。";
+        return "绿灯：系统就绪，可以按三键键盘 K-B 触发语音输入。";
     case AssistantStatus::Listening:
         return state.voiceCountdownSeconds > 0
             ? QString("黄灯：正在录音，还剩 %1 秒。").arg(state.voiceCountdownSeconds)
@@ -64,7 +64,7 @@ void HardwarePage::setState(const ConnectionState& state) {
     }
 
     QList<HealthItem> displayItems;
-    displayItems << HealthItem{"旋钮 / 按钮触发", assistantDetail(state), assistantLevel(state.assistantStatus)};
+    displayItems << HealthItem{"对话触发按键", assistantDetail(state), assistantLevel(state.assistantStatus)};
     displayItems << HealthItem{"树莓派网络", state.sshOnline ? "SSH 已连接：" + state.activeHost : "正在等待树莓派连接", state.sshOnline ? HealthLevel::Ok : HealthLevel::Checking};
     displayItems << HealthItem{"自启动服务", state.serviceActive ? "embedded-ai.service 正在运行" : "服务未确认运行", state.serviceActive ? HealthLevel::Ok : HealthLevel::Warning};
     displayItems << HealthItem{"最新画面", state.localFramePath.isEmpty() ? "尚未拉取摄像头图片" : "已缓存：" + state.localFramePath, state.localFramePath.isEmpty() ? HealthLevel::Warning : HealthLevel::Ok};

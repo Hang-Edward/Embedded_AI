@@ -62,6 +62,14 @@ private:
         qreal size = 0.0;
     };
 
+    struct TwinkleStar {
+        QPointF normalizedPosition;
+        qreal phase = 0.0;
+        qreal speed = 0.0;
+        qreal size = 0.0;
+        qreal brightness = 0.0;
+    };
+
     void advanceAnimation();
     void createClickParticles(const QPointF& position);
 
@@ -71,6 +79,7 @@ private:
     int meteorCooldown_ = 0;
     QVector<Meteor> meteors_;
     QVector<Particle> particles_;
+    QVector<TwinkleStar> stars_;
 };
 
 // 中文注释：应用内统一的液态玻璃表面，背景透出、边缘高光并带轻微纵向层次。
