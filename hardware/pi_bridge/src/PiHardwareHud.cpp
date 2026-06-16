@@ -38,7 +38,7 @@ void PiHardwareHud::showNewerReplyPage() const {
 }
 
 void PiHardwareHud::showRecordingCountdown(int seconds) const {
-    runScript("recording", std::to_string(seconds), true);
+    runScript("recording", std::to_string(seconds), false);
 }
 
 void PiHardwareHud::runScript(const std::string& mode, const std::string& value, bool async) const {

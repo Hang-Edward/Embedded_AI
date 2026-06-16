@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <future>
 #include <sstream>
 
 namespace {
@@ -279,8 +280,14 @@ uint32_t App::analyzeVoiceCommand() {
     bool useSpeechPrompt = false;
 
     console_.info("Recording voice command for 5 seconds. Please speak now...\n");
-    hud_.showRecordingCountdown(5);
-    const AudioRecordResult audio = audioRecorder_.recordWav("captures/voice-command.wav", 5);
+    auto audioFuture = std::async(std::launch::async, [this]() {
+        return audioRecorder_.recordWav("captures/voice-command.wav", 5);
+    });
+    auto hudFuture = std::async(std::launch::async, [this]() {
+        hud_.showRecordingCountdown(5);
+    });
+    hudFuture.get();
+    const AudioRecordResult audio = audioFuture.get();
     if (!audio.success) {
         auditLog_.appendHardwareAction("VOICE_RECORD", "FAILED: " + audio.message);
         hud_.showError("录音失败：" + audio.message);

@@ -61,7 +61,7 @@ MainWindow::MainWindow(QWidget* parent)
     buildUi();
 
     liveTimer_ = new QTimer(this);
-    liveTimer_->setInterval(2000);
+    liveTimer_->setInterval(1000);
     QObject::connect(liveTimer_, &QTimer::timeout, this, [this]() {
         connection_.refreshNow();
     });

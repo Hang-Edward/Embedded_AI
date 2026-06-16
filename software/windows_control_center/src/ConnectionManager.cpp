@@ -708,8 +708,10 @@ void ConnectionManager::updateAssistantStatus(bool serviceOk, int buttonEventCou
     }
 
     if (recording >= 0 && audioRecorded < recording) {
-        const int elapsed = activeFlowSeenAt_.secsTo(QDateTime::currentDateTime());
-        state_.voiceCountdownSeconds = qMax(0, kVoiceSeconds - elapsed);
+        const qint64 totalMs = static_cast<qint64>(kVoiceSeconds) * 1000;
+        const qint64 elapsedMs = activeFlowSeenAt_.msecsTo(QDateTime::currentDateTime());
+        const qint64 remainingMs = qMax<qint64>(1, totalMs - elapsedMs);
+        state_.voiceCountdownSeconds = static_cast<int>((remainingMs + 999) / 1000);
         state_.assistantStatus = AssistantStatus::Listening;
         state_.assistantStatusText = QString("🎙️ 已检测到按钮，正在录音：还剩 %1 秒").arg(state_.voiceCountdownSeconds);
         return;
