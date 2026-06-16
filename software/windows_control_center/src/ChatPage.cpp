@@ -38,6 +38,7 @@ ChatPage::ChatPage(QWidget* parent)
 }
 
 void ChatPage::appendDemoConversation() {
+    lastSessionKey_.clear();
     clearMessages();
     const int insertAt = qMax(0, messages_->count() - 1);
     auto* system = new ChatMessageWidget(ChatMessageWidget::Role::System, this);
@@ -47,6 +48,18 @@ void ChatPage::appendDemoConversation() {
 }
 
 void ChatPage::setLatestSession(const ConnectionState& state) {
+    QString newKey;
+    if (state.recentRecords.isEmpty()) {
+        newKey = "empty|" + state.assistantStatusText + "|" + state.localFramePath;
+    } else {
+        const ConversationRecord& record = state.recentRecords.first();
+        newKey = record.title + "|" + record.userText + "|" + record.flowText + "|" + record.aiText + "|" + record.imagePath + "|" + state.localFramePath;
+    }
+    if (newKey == lastSessionKey_) {
+        return;
+    }
+    lastSessionKey_ = newKey;
+
     clearMessages();
     const int insertAt = qMax(0, messages_->count() - 1);
 

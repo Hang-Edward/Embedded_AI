@@ -50,6 +50,7 @@ private:
     QMap<QString, QPushButton*> navButtons_;
     QTimer* liveTimer_ = nullptr;
     bool watchLive_ = true;
+    QString lastStatusClass_;
 
     ChatPage* chatPage_ = nullptr;
     HardwarePage* hardwarePage_ = nullptr;

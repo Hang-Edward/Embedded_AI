@@ -56,6 +56,21 @@ HardwarePage::HardwarePage(QWidget* parent)
 }
 
 void HardwarePage::setState(const ConnectionState& state) {
+    QStringList keyParts;
+    keyParts << QString::number(static_cast<int>(state.assistantStatus))
+             << state.assistantStatusText
+             << state.activeHost
+             << (state.serviceActive ? "1" : "0")
+             << state.localFramePath;
+    for (const HealthItem& item : state.hardwareItems) {
+        keyParts << item.name + "|" + item.detail + "|" + QString::number(static_cast<int>(item.level));
+    }
+    const QString newKey = keyParts.join("||");
+    if (newKey == lastStateKey_) {
+        return;
+    }
+    lastStateKey_ = newKey;
+
     while (auto* item = grid_->takeAt(0)) {
         if (item->widget()) {
             item->widget()->deleteLater();

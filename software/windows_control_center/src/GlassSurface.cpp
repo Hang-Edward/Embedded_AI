@@ -188,6 +188,7 @@ BackgroundWidget::BackgroundWidget(QWidget* parent)
 void BackgroundWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     rebuildWallpaperCache();
+    rebuildGlowSprites();
 }
 
 void BackgroundWidget::rebuildWallpaperCache() {
@@ -230,6 +231,45 @@ void BackgroundWidget::rebuildStarSprite() {
     sparkle.closeSubpath();
     painter.setBrush(QColor(246, 253, 255, 238));
     painter.drawPath(sparkle);
+}
+
+void BackgroundWidget::rebuildGlowSprites() {
+    if (size().isEmpty()) {
+        firstGlowSprite_ = QPixmap();
+        secondGlowSprite_ = QPixmap();
+        return;
+    }
+
+    const int firstSide = qMax(width(), height());
+    firstGlowSprite_ = QPixmap(firstSide, firstSide);
+    firstGlowSprite_.fill(Qt::transparent);
+    {
+        QPainter painter(&firstGlowSprite_);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        const QPointF center(firstSide / 2.0, firstSide / 2.0);
+        QRadialGradient glow(center, firstSide * 0.48);
+        glow.setColorAt(0.0, QColor(92, 138, 255, 52));
+        glow.setColorAt(0.46, QColor(57, 104, 255, 20));
+        glow.setColorAt(1.0, QColor(14, 36, 92, 0));
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(glow);
+        painter.drawEllipse(center, firstSide * 0.48, firstSide * 0.48);
+    }
+
+    const int secondSide = static_cast<int>(qMax(width(), height()) * 0.82);
+    secondGlowSprite_ = QPixmap(secondSide, secondSide);
+    secondGlowSprite_.fill(Qt::transparent);
+    {
+        QPainter painter(&secondGlowSprite_);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        const QPointF center(secondSide / 2.0, secondSide / 2.0);
+        QRadialGradient glow(center, secondSide * 0.40);
+        glow.setColorAt(0.0, QColor(46, 210, 220, 30));
+        glow.setColorAt(1.0, QColor(8, 48, 77, 0));
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(glow);
+        painter.drawEllipse(center, secondSide * 0.40, secondSide * 0.40);
+    }
 }
 
 bool BackgroundWidget::eventFilter(QObject* watched, QEvent* event) {
@@ -308,7 +348,7 @@ void BackgroundWidget::createClickParticles(const QPointF& position) {
 void BackgroundWidget::paintEvent(QPaintEvent* event) {
     Q_UNUSED(event)
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setRenderHint(QPainter::Antialiasing, false);
     painter.fillRect(rect(), QColor(3, 8, 22));
 
     if (!scaledWallpaper_.isNull()) {
@@ -321,19 +361,21 @@ void BackgroundWidget::paintEvent(QPaintEvent* event) {
 
     const QPointF firstCenter(width() * (0.72 + 0.035 * qSin(phase_)),
                               height() * (0.18 + 0.025 * qCos(phase_ * 0.8)));
-    QRadialGradient firstGlow(firstCenter, qMax(width(), height()) * 0.48);
-    firstGlow.setColorAt(0.0, QColor(92, 138, 255, 52));
-    firstGlow.setColorAt(0.46, QColor(57, 104, 255, 20));
-    firstGlow.setColorAt(1.0, QColor(14, 36, 92, 0));
-    painter.fillRect(rect(), firstGlow);
+    if (!firstGlowSprite_.isNull()) {
+        painter.drawPixmap(QPointF(firstCenter.x() - firstGlowSprite_.width() / 2.0,
+                                   firstCenter.y() - firstGlowSprite_.height() / 2.0),
+                           firstGlowSprite_);
+    }
 
     const QPointF secondCenter(width() * (0.24 + 0.025 * qCos(phase_ * 0.7)),
                                height() * (0.72 + 0.03 * qSin(phase_ * 0.6)));
-    QRadialGradient secondGlow(secondCenter, qMax(width(), height()) * 0.40);
-    secondGlow.setColorAt(0.0, QColor(46, 210, 220, 30));
-    secondGlow.setColorAt(1.0, QColor(8, 48, 77, 0));
-    painter.fillRect(rect(), secondGlow);
+    if (!secondGlowSprite_.isNull()) {
+        painter.drawPixmap(QPointF(secondCenter.x() - secondGlowSprite_.width() / 2.0,
+                                   secondCenter.y() - secondGlowSprite_.height() / 2.0),
+                           secondGlowSprite_);
+    }
 
+    painter.setRenderHint(QPainter::Antialiasing, true);
     for (const Meteor& meteor : meteors_) {
         const QPointF tail = meteor.position + QPointF(meteor.length * 0.38, -meteor.length);
         QLinearGradient trail(tail, meteor.position);

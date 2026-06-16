@@ -12,4 +12,5 @@ public:
 
 private:
     QGridLayout* grid_ = nullptr;
+    QString lastStateKey_;
 };

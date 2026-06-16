@@ -12,4 +12,5 @@ public:
 
 private:
     QTextEdit* logView_ = nullptr;
+    QString lastLogText_;
 };

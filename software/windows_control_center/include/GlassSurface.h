@@ -77,10 +77,13 @@ private:
     void createClickParticles(const QPointF& position);
     void rebuildWallpaperCache();
     void rebuildStarSprite();
+    void rebuildGlowSprites();
 
     QPixmap wallpaper_;
     QPixmap scaledWallpaper_;
     QPixmap starSprite_;
+    QPixmap firstGlowSprite_;
+    QPixmap secondGlowSprite_;
     QElapsedTimer frameClock_;
     QTimer* animationTimer_ = nullptr;
     qreal phase_ = 0.0;

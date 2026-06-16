@@ -241,9 +241,14 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
     }
     const QString cleanStatus = statusTextFor(state);
     actionBanner_->setProperty("status", statusClass);
-    actionBanner_->style()->unpolish(actionBanner_);
-    actionBanner_->style()->polish(actionBanner_);
-    actionBanner_->setText(cleanStatus);
+    if (statusClass != lastStatusClass_) {
+        actionBanner_->style()->unpolish(actionBanner_);
+        actionBanner_->style()->polish(actionBanner_);
+        lastStatusClass_ = statusClass;
+    }
+    if (actionBanner_->text() != cleanStatus) {
+        actionBanner_->setText(cleanStatus);
+    }
 
     lanWarning_->setVisible(!state.warning.isEmpty() && !state.sshOnline);
     lanWarning_->setText("网络提示：如果 PC 和树莓派没有处在同一局域网，SSH 可能无法连接。手机热点下通常前三段 IP 相同。");

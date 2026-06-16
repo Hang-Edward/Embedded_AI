@@ -20,6 +20,11 @@ void LogsPage::setDemoLog() {
 }
 
 void LogsPage::setLogText(const QString& text) {
-    logView_->setPlainText(text.trimmed().isEmpty() ? "树莓派没有返回日志内容。" : text);
+    const QString normalized = text.trimmed().isEmpty() ? "树莓派没有返回日志内容。" : text;
+    if (normalized == lastLogText_) {
+        return;
+    }
+    lastLogText_ = normalized;
+    logView_->setPlainText(normalized);
     logView_->moveCursor(QTextCursor::End);
 }

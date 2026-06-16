@@ -36,6 +36,10 @@ void CameraPage::setImagePath(const QString& imagePath) {
         return;
     }
 
+    if (imagePath == lastImagePath_) {
+        return;
+    }
+
     QString error;
     const QPixmap pixmap = loadPixmapFromFile(imagePath, &error);
     if (pixmap.isNull()) {
@@ -46,9 +50,17 @@ void CameraPage::setImagePath(const QString& imagePath) {
     preview_->setText(QString());
     preview_->setPixmap(pixmap.scaled(900, 560, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     preview_->setToolTip(imagePath);
+    lastImagePath_ = imagePath;
+    lastStatusText_.clear();
 }
 
 void CameraPage::setStatusText(const QString& text) {
+    if (text == lastStatusText_) {
+        return;
+    }
     preview_->setPixmap(QPixmap());
     preview_->setText(text);
+    preview_->setToolTip(QString());
+    lastStatusText_ = text;
+    lastImagePath_.clear();
 }

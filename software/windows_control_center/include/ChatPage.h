@@ -17,4 +17,5 @@ private:
 
     QVBoxLayout* messages_ = nullptr;
     QPushButton* triggerButton_ = nullptr;
+    QString lastSessionKey_;
 };

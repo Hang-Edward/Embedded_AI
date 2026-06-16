@@ -12,4 +12,6 @@ public:
 
 private:
     QLabel* preview_ = nullptr;
+    QString lastImagePath_;
+    QString lastStatusText_;
 };
