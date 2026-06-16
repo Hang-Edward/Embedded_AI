@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QPixmap>
 #include <QPointF>
 #include <QPushButton>
@@ -9,6 +10,7 @@
 
 class QTimer;
 class QVariantAnimation;
+class QResizeEvent;
 
 // 中文注释：自绘导航按钮提供连续的悬停与选中动画，避免普通 QSS 按钮的平面感。
 class LiquidNavButton final : public QPushButton {
@@ -46,6 +48,7 @@ public:
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     struct Meteor {
@@ -72,11 +75,17 @@ private:
 
     void advanceAnimation();
     void createClickParticles(const QPointF& position);
+    void rebuildWallpaperCache();
+    void rebuildStarSprite();
 
     QPixmap wallpaper_;
+    QPixmap scaledWallpaper_;
+    QPixmap starSprite_;
+    QElapsedTimer frameClock_;
     QTimer* animationTimer_ = nullptr;
     qreal phase_ = 0.0;
-    int meteorCooldown_ = 0;
+    qint64 lastFrameMs_ = 0;
+    qreal meteorCooldown_ = 0.0;
     QVector<Meteor> meteors_;
     QVector<Particle> particles_;
     QVector<TwinkleStar> stars_;
@@ -95,7 +104,11 @@ public:
 
 protected:
     void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
+    void rebuildSurfaceCache();
+
     Tone tone_;
+    QPixmap surfaceCache_;
 };

@@ -2,10 +2,10 @@ cmake_minimum_required(VERSION 3.21)
 
 project(EmbeddedAiControlCenter LANGUAGES CXX)
 
-find_package(Qt6 QUIET COMPONENTS Widgets Network)
+find_package(Qt6 QUIET COMPONENTS Widgets Network Concurrent)
 
 if (NOT Qt6_FOUND)
-    message(WARNING "Qt6 Widgets/Network not found. Skipping EmbeddedAiControlCenter.")
+    message(WARNING "Qt6 Widgets/Network/Concurrent not found. Skipping EmbeddedAiControlCenter.")
     return()
 endif()
 
@@ -43,6 +43,7 @@ target_include_directories(embedded_ai_control_center PRIVATE
 target_link_libraries(embedded_ai_control_center PRIVATE
     Qt6::Widgets
     Qt6::Network
+    Qt6::Concurrent
 )
 
 target_compile_definitions(embedded_ai_control_center PRIVATE

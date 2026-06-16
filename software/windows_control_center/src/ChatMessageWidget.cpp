@@ -3,10 +3,34 @@
 #include <QHBoxLayout>
 #include <QImageReader>
 #include <QLabel>
+#include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QVBoxLayout>
 
 namespace {
+class DarkMessageBubble final : public QWidget {
+public:
+    explicit DarkMessageBubble(QWidget* parent = nullptr)
+        : QWidget(parent) {
+        setAttribute(Qt::WA_TranslucentBackground, true);
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override {
+        Q_UNUSED(event)
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        const QRectF bounds = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+        QPainterPath shape;
+        shape.addRoundedRect(bounds, 16.0, 16.0);
+        // 中文注释：色值对齐原始日志框，让气泡保持半透明深蓝，而不是过度压暗。
+        painter.fillPath(shape, QColor(8, 18, 38, 118));
+        painter.setPen(QPen(QColor(170, 220, 255, 58), 1.0));
+        painter.drawPath(shape);
+    }
+};
+
 QPixmap loadPixmapFromFile(const QString& imagePath, QString* error) {
     QImageReader reader(imagePath);
     reader.setAutoTransform(true);
@@ -33,10 +57,8 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     avatar_->setFixedSize(42, 42);
     avatar_->setAlignment(Qt::AlignCenter);
 
-    auto* bubble = new QWidget(this);
+    auto* bubble = new DarkMessageBubble(this);
     bubble->setObjectName("messageBubble");
-    // 普通 QWidget 默认可能不绘制 QSS 背景，显式开启后深色气泡才能真正生效。
-    bubble->setAttribute(Qt::WA_StyledBackground, true);
     auto* bubbleLayout = new QVBoxLayout(bubble);
     bubbleLayout->setContentsMargins(16, 14, 16, 14);
     bubbleLayout->setSpacing(8);

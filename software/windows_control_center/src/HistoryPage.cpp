@@ -4,6 +4,7 @@
 #include <QImageReader>
 #include <QLabel>
 #include <QListWidget>
+#include <QListView>
 #include <QPixmap>
 #include <QSplitter>
 #include <QTextEdit>
@@ -30,6 +31,11 @@ HistoryPage::HistoryPage(QWidget* parent)
     list_ = new QListWidget(splitter);
     list_->setObjectName("recentList");
     list_->setMinimumWidth(300);
+    list_->setWordWrap(true);
+    list_->setTextElideMode(Qt::ElideNone);
+    list_->setUniformItemSizes(false);
+    list_->setResizeMode(QListView::Adjust);
+    list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     auto* detailPanel = new QWidget(splitter);
     auto* detailLayout = new QVBoxLayout(detailPanel);
@@ -75,7 +81,7 @@ void HistoryPage::setRecords(const ConnectionState& state) {
     list_->clear();
     for (int i = 0; i < records_.size(); ++i) {
         const ConversationRecord& record = records_[i];
-        const QString label = QString("AI REPLY %1  %2").arg(-i).arg(record.userText.left(44));
+        const QString label = QString("AI REPLY %1\n%2").arg(-i).arg(record.userText);
         list_->addItem(label);
     }
 

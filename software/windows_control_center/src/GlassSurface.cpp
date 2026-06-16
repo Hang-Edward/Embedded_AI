@@ -9,6 +9,7 @@
 #include <QPainterPath>
 #include <QRandomGenerator>
 #include <QRadialGradient>
+#include <QResizeEvent>
 #include <QTimer>
 #include <QVariantAnimation>
 #include <QtMath>
@@ -158,6 +159,7 @@ BackgroundWidget::BackgroundWidget(QWidget* parent)
     setAttribute(Qt::WA_StyledBackground, false);
     setAutoFillBackground(false);
     qApp->installEventFilter(this);
+    rebuildStarSprite();
 
     // 四角星使用归一化坐标，窗口缩放后仍能均匀分布。
     for (int i = 0; i < 46; ++i) {
@@ -171,11 +173,63 @@ BackgroundWidget::BackgroundWidget(QWidget* parent)
     }
 
     animationTimer_ = new QTimer(this);
-    animationTimer_->setInterval(40);
+    frameClock_.start();
+    lastFrameMs_ = frameClock_.elapsed();
+    // 中文注释：背景节拍提升到约 30 FPS，同时运动量按真实时间推进。
+    animationTimer_->setInterval(33);
     connect(animationTimer_, &QTimer::timeout, this, [this]() {
-        advanceAnimation();
+        if (isVisible() && !window()->isMinimized()) {
+            advanceAnimation();
+        }
     });
     animationTimer_->start();
+}
+
+void BackgroundWidget::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+    rebuildWallpaperCache();
+}
+
+void BackgroundWidget::rebuildWallpaperCache() {
+    if (wallpaper_.isNull() || size().isEmpty()) {
+        scaledWallpaper_ = QPixmap();
+        return;
+    }
+    // 中文注释：高质量壁纸缩放只在窗口尺寸改变时执行，避免动画每帧重复缩放大图。
+    scaledWallpaper_ = wallpaper_.scaled(size(), Qt::KeepAspectRatioByExpanding,
+                                          Qt::SmoothTransformation);
+}
+
+void BackgroundWidget::rebuildStarSprite() {
+    constexpr int side = 96;
+    starSprite_ = QPixmap(side, side);
+    starSprite_.fill(Qt::transparent);
+
+    QPainter painter(&starSprite_);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    const QPointF center(side / 2.0, side / 2.0);
+
+    QRadialGradient glow(center, side * 0.46);
+    glow.setColorAt(0.0, QColor(246, 253, 255, 220));
+    glow.setColorAt(0.24, QColor(167, 224, 255, 120));
+    glow.setColorAt(1.0, QColor(96, 158, 255, 0));
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(glow);
+    painter.drawEllipse(center, side * 0.46, side * 0.46);
+
+    const qreal radius = 9.2;
+    QPainterPath sparkle;
+    sparkle.moveTo(center.x(), center.y() - radius * 3.0);
+    sparkle.lineTo(center.x() + radius * 0.36, center.y() - radius * 0.36);
+    sparkle.lineTo(center.x() + radius * 3.0, center.y());
+    sparkle.lineTo(center.x() + radius * 0.36, center.y() + radius * 0.36);
+    sparkle.lineTo(center.x(), center.y() + radius * 3.0);
+    sparkle.lineTo(center.x() - radius * 0.36, center.y() + radius * 0.36);
+    sparkle.lineTo(center.x() - radius * 3.0, center.y());
+    sparkle.lineTo(center.x() - radius * 0.36, center.y() - radius * 0.36);
+    sparkle.closeSubpath();
+    painter.setBrush(QColor(246, 253, 255, 238));
+    painter.drawPath(sparkle);
 }
 
 bool BackgroundWidget::eventFilter(QObject* watched, QEvent* event) {
@@ -191,12 +245,19 @@ bool BackgroundWidget::eventFilter(QObject* watched, QEvent* event) {
 }
 
 void BackgroundWidget::advanceAnimation() {
-    phase_ += 0.008;
+    const qint64 nowMs = frameClock_.elapsed();
+    const qint64 rawDeltaMs = nowMs - lastFrameMs_;
+    lastFrameMs_ = nowMs;
+    const qreal deltaMs = qBound<qreal>(16.0, static_cast<qreal>(rawDeltaMs), 45.0);
+    const qreal step = deltaMs / 40.0;
+
+    phase_ += 0.008 * step;
     if (phase_ > 6.283185307) {
         phase_ = 0.0;
     }
 
-    if (--meteorCooldown_ <= 0 && meteors_.size() < 20 && width() > 0) {
+    meteorCooldown_ -= step;
+    if (meteorCooldown_ <= 0.0 && meteors_.size() < 20 && width() > 0) {
         Meteor meteor;
         meteor.position = QPointF(QRandomGenerator::global()->bounded(qMax(1, width())),
                                   -QRandomGenerator::global()->bounded(40, 180));
@@ -204,26 +265,26 @@ void BackgroundWidget::advanceAnimation() {
         meteor.length = randomBetween(90.0, 185.0);
         meteor.opacity = randomBetween(0.42, 0.82);
         meteors_.push_back(meteor);
-        meteorCooldown_ = QRandomGenerator::global()->bounded(3, 10);
+        meteorCooldown_ = static_cast<qreal>(QRandomGenerator::global()->bounded(3, 10));
     }
 
     for (Meteor& meteor : meteors_) {
-        meteor.position += QPointF(-meteor.speed * 0.38, meteor.speed);
+        meteor.position += QPointF(-meteor.speed * 0.38 * step, meteor.speed * step);
     }
     meteors_.erase(std::remove_if(meteors_.begin(), meteors_.end(), [this](const Meteor& meteor) {
         return meteor.position.y() - meteor.length > height() || meteor.position.x() < -meteor.length;
     }), meteors_.end());
 
     for (Particle& particle : particles_) {
-        particle.position += particle.velocity;
-        particle.velocity *= 0.94;
-        particle.life -= 0.072;
+        particle.position += particle.velocity * step;
+        particle.velocity *= qPow(0.92, step);
+        particle.life -= 0.096 * step;
     }
     particles_.erase(std::remove_if(particles_.begin(), particles_.end(), [](const Particle& particle) {
         return particle.life <= 0.0;
     }), particles_.end());
     for (TwinkleStar& star : stars_) {
-        star.phase += star.speed;
+        star.phase += star.speed * step;
         if (star.phase > 6.283185307) {
             star.phase -= 6.283185307;
         }
@@ -234,12 +295,12 @@ void BackgroundWidget::advanceAnimation() {
 void BackgroundWidget::createClickParticles(const QPointF& position) {
     for (int i = 0; i < 34; ++i) {
         const qreal angle = (6.283185307 * i / 34.0) + randomBetween(-0.18, 0.18);
-        const qreal speed = randomBetween(6.2, 12.5);
+        const qreal speed = randomBetween(8.2, 15.1);
         Particle particle;
         particle.position = position;
         particle.velocity = QPointF(qCos(angle) * speed, qSin(angle) * speed);
-        particle.life = randomBetween(0.68, 0.90);
-        particle.size = randomBetween(2.8, 6.8);
+        particle.life = randomBetween(0.58, 0.80);
+        particle.size = randomBetween(2.4, 5.6);
         particles_.push_back(particle);
     }
 }
@@ -250,10 +311,10 @@ void BackgroundWidget::paintEvent(QPaintEvent* event) {
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.fillRect(rect(), QColor(3, 8, 22));
 
-    if (!wallpaper_.isNull()) {
-        const QPixmap scaled = wallpaper_.scaled(size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-        const QPoint origin((width() - scaled.width()) / 2, (height() - scaled.height()) / 2);
-        painter.drawPixmap(origin, scaled);
+    if (!scaledWallpaper_.isNull()) {
+        const QPoint origin((width() - scaledWallpaper_.width()) / 2,
+                            (height() - scaledWallpaper_.height()) / 2);
+        painter.drawPixmap(origin, scaledWallpaper_);
     }
 
     painter.fillRect(rect(), QColor(1, 5, 18, 14));
@@ -287,34 +348,18 @@ void BackgroundWidget::paintEvent(QPaintEvent* event) {
     }
 
     for (const TwinkleStar& star : stars_) {
-        const qreal pulse = qPow(qMax<qreal>(0.0, qSin(star.phase)), 5.0);
+        const qreal wave = qMax<qreal>(0.0, qSin(star.phase));
+        const qreal pulse = wave * wave * wave * wave;
         if (pulse < 0.025) {
             continue;
         }
         const QPointF center(star.normalizedPosition.x() * width(), star.normalizedPosition.y() * height());
-        const qreal radius = star.size * (0.68 + pulse * 1.35);
-        const int alpha = static_cast<int>((28.0 + pulse * 210.0) * star.brightness);
-
-        QPainterPath sparkle;
-        sparkle.moveTo(center.x(), center.y() - radius * 2.8);
-        sparkle.lineTo(center.x() + radius * 0.34, center.y() - radius * 0.34);
-        sparkle.lineTo(center.x() + radius * 2.8, center.y());
-        sparkle.lineTo(center.x() + radius * 0.34, center.y() + radius * 0.34);
-        sparkle.lineTo(center.x(), center.y() + radius * 2.8);
-        sparkle.lineTo(center.x() - radius * 0.34, center.y() + radius * 0.34);
-        sparkle.lineTo(center.x() - radius * 2.8, center.y());
-        sparkle.lineTo(center.x() - radius * 0.34, center.y() - radius * 0.34);
-        sparkle.closeSubpath();
-
-        QRadialGradient starGlow(center, radius * 4.2);
-        starGlow.setColorAt(0.0, QColor(241, 251, 255, alpha));
-        starGlow.setColorAt(0.30, QColor(156, 218, 255, alpha / 2));
-        starGlow.setColorAt(1.0, QColor(91, 151, 255, 0));
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(starGlow);
-        painter.drawEllipse(center, radius * 4.2, radius * 4.2);
-        painter.setBrush(QColor(242, 252, 255, qMin(245, alpha + 25)));
-        painter.drawPath(sparkle);
+        const qreal side = star.size * (9.0 + pulse * 11.0);
+        const qreal opacity = qBound<qreal>(0.0, (0.20 + pulse * 0.78) * star.brightness, 1.0);
+        painter.setOpacity(opacity);
+        painter.drawPixmap(QRectF(center.x() - side / 2.0, center.y() - side / 2.0, side, side),
+                           starSprite_, QRectF(starSprite_.rect()));
+        painter.setOpacity(1.0);
     }
 
     for (const Particle& particle : particles_) {
@@ -348,9 +393,20 @@ GlassSurface::GlassSurface(Tone tone, QWidget* parent)
     }
 }
 
-void GlassSurface::paintEvent(QPaintEvent* event) {
-    Q_UNUSED(event)
-    QPainter painter(this);
+void GlassSurface::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+    rebuildSurfaceCache();
+}
+
+void GlassSurface::rebuildSurfaceCache() {
+    if (size().isEmpty()) {
+        surfaceCache_ = QPixmap();
+        return;
+    }
+
+    surfaceCache_ = QPixmap(size());
+    surfaceCache_.fill(Qt::transparent);
+    QPainter painter(&surfaceCache_);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
     const qreal radius = tone_ == Tone::Sidebar ? 22.0 : 24.0;
@@ -403,4 +459,13 @@ void GlassSurface::paintEvent(QPaintEvent* event) {
     inner.addRoundedRect(bounds.adjusted(1.5, 1.5, -1.5, -1.5), radius - 2.0, radius - 2.0);
     painter.setPen(QPen(QColor(255, 255, 255, 22), 1.0));
     painter.drawPath(inner);
+}
+
+void GlassSurface::paintEvent(QPaintEvent* event) {
+    Q_UNUSED(event)
+    if (surfaceCache_.size() != size()) {
+        rebuildSurfaceCache();
+    }
+    QPainter painter(this);
+    painter.drawPixmap(0, 0, surfaceCache_);
 }

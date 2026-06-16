@@ -3,11 +3,14 @@
 #include "AppConfig.h"
 #include "ConnectionState.h"
 
+#include <QFutureWatcher>
 #include <QObject>
 #include <QProcess>
 #include <QTimer>
 #include <QDateTime>
 #include <functional>
+
+struct HealthCheckResult;
 
 class ConnectionManager : public QObject {
 public:
@@ -38,10 +41,12 @@ private:
     void handlePingFinished(int exitCode);
     void handleSshFinished(int exitCode);
     void runHealthChecks();
+    void handleAsyncHealthRefreshFinished();
+    void applyHealthOutput(const QString& output);
     void setPiServiceRunning(bool running);
     QString runSshTextCommand(const QString& remoteCommand, int timeoutMs = 5000) const;
     QByteArray runSshBinaryCommand(const QString& remoteCommand, int timeoutMs = 7000) const;
-    void fetchLatestFrame(const QString& remoteSignature);
+    void storeLatestFrameBytes(const QString& remoteSignature, const QByteArray& bytes);
     void loadRecentFrames();
     void parseConversationRecords();
     QString extractLastAnswer(const QString& sessionText) const;
@@ -67,5 +72,7 @@ private:
     QString lastFrameSignature_;
     int lastButtonEventCount_ = 0;
     QDateTime activeFlowSeenAt_;
+    QFutureWatcher<HealthCheckResult>* refreshWatcher_ = nullptr;
+    bool refreshQueued_ = false;
     StateCallback callback_;
 };

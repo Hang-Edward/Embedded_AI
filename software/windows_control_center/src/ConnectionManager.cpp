@@ -5,15 +5,24 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QHostAddress>
 #include <QNetworkInterface>
 #include <QRegularExpression>
 #include <QSet>
 #include <QFileInfo>
 #include <QStandardPaths>
+#include <QtConcurrent>
 #include <QtGlobal>
 
 #include <algorithm>
+
+struct HealthCheckResult {
+    QString output;
+    QByteArray frameBytes;
+    bool ok = false;
+    QString errorText;
+};
 
 namespace {
 constexpr int kVoiceSeconds = 5;
@@ -26,10 +35,86 @@ bool containsAny(const QString& text, const QStringList& needles) {
     }
     return false;
 }
+
+QString sectionValue(const QString& output, const QString& name, const QString& nextName = QString()) {
+    const QString marker = "__" + name + "__";
+    const int start = output.indexOf(marker);
+    if (start < 0) {
+        return QString();
+    }
+    int valueStart = start + marker.size();
+    if (valueStart < output.size() && output[valueStart] == '\n') {
+        ++valueStart;
+    }
+    int end = output.size();
+    if (!nextName.isEmpty()) {
+        const int next = output.indexOf("__" + nextName + "__", valueStart);
+        if (next >= 0) {
+            end = next;
+        }
+    }
+    return output.mid(valueStart, end - valueStart).trimmed();
+}
+
+QString healthCheckCommand() {
+    return QString::fromUtf8(R"SH(
+echo __SERVICE__
+systemctl --user is-active embedded-ai.service 2>/dev/null || true
+echo __SERIAL__
+ls /dev/ttyACM* 2>/dev/null | tr '\n' ' ' || true
+echo
+echo __VIDEO__
+ls /dev/video* 2>/dev/null | tr '\n' ' ' || true
+echo
+echo __AUDIO__
+arecord -l 2>/dev/null | grep -Ei 'c270|webcam|usb audio|card' | head -n 4 || true
+echo __QWEN__
+test -s ~/Embedded_AI/config/qwen-vision.ini && test -s ~/Embedded_AI/config/qwen-vision.key && echo OK || echo MISSING
+echo __NETWORK__
+ping -c 1 -W 2 dashscope.aliyuncs.com >/dev/null 2>&1 && echo OK || echo FAIL
+echo __FRAME__
+stat -c '%Y:%s' ~/Embedded_AI/captures/latest-frame.jpg 2>/dev/null || echo MISSING
+echo __LOG__
+tail -n 320 ~/Embedded_AI/logs/embedded-ai.log 2>/dev/null || echo 'No embedded-ai.log file yet.'
+)SH");
+}
+
+QString frameFetchCommand() {
+    return QString::fromUtf8("test -s ~/Embedded_AI/captures/latest-frame.jpg && base64 -w 0 ~/Embedded_AI/captures/latest-frame.jpg");
+}
+
+QString runSshTextCommandForTarget(const QString& sshTarget, const QString& remoteCommand, int timeoutMs) {
+    QProcess ssh;
+    ssh.start("ssh", {"-o", "BatchMode=yes", "-o", "ConnectTimeout=3", sshTarget, remoteCommand});
+    if (!ssh.waitForFinished(timeoutMs)) {
+        ssh.kill();
+        return "命令超时：" + remoteCommand;
+    }
+    const QString stdoutText = QString::fromUtf8(ssh.readAllStandardOutput());
+    const QString stderrText = QString::fromUtf8(ssh.readAllStandardError());
+    if (ssh.exitCode() != 0 && stdoutText.trimmed().isEmpty()) {
+        return stderrText.trimmed();
+    }
+    return stdoutText;
+}
+
+QByteArray runSshBinaryCommandForTarget(const QString& sshTarget, const QString& remoteCommand, int timeoutMs) {
+    QProcess ssh;
+    ssh.start("ssh", {"-o", "BatchMode=yes", "-o", "ConnectTimeout=3", sshTarget, remoteCommand});
+    if (!ssh.waitForFinished(timeoutMs)) {
+        ssh.kill();
+        return {};
+    }
+    if (ssh.exitCode() != 0) {
+        return {};
+    }
+    return ssh.readAllStandardOutput();
+}
 }
 
 ConnectionManager::ConnectionManager(AppConfig& config, QObject* parent)
     : QObject(parent), config_(config) {
+    refreshWatcher_ = new QFutureWatcher<HealthCheckResult>(this);
     QObject::connect(&process_,
         qOverload<int, QProcess::ExitStatus>(&QProcess::finished),
         this,
@@ -42,6 +127,9 @@ ConnectionManager::ConnectionManager(AppConfig& config, QObject* parent)
                 handleSshFinished(exitCode);
             }
         });
+    QObject::connect(refreshWatcher_, &QFutureWatcher<HealthCheckResult>::finished, this, [this]() {
+        handleAsyncHealthRefreshFinished();
+    });
 }
 
 void ConnectionManager::setStateCallback(StateCallback callback) {
@@ -70,8 +158,11 @@ void ConnectionManager::refreshNow() {
         reconnect();
         return;
     }
+    if (refreshWatcher_->isRunning()) {
+        refreshQueued_ = true;
+        return;
+    }
     runHealthChecks();
-    publish();
 }
 
 void ConnectionManager::startPiService() {
@@ -253,58 +344,64 @@ void ConnectionManager::handleSshFinished(int exitCode) {
 }
 
 void ConnectionManager::runHealthChecks() {
-    const QString remoteCommand = R"SH(
-echo __SERVICE__
-systemctl --user is-active embedded-ai.service 2>/dev/null || true
-echo __SERIAL__
-ls /dev/ttyACM* 2>/dev/null | tr '\n' ' ' || true
-echo
-echo __VIDEO__
-ls /dev/video* 2>/dev/null | tr '\n' ' ' || true
-echo
-echo __AUDIO__
-arecord -l 2>/dev/null | grep -Ei 'c270|webcam|usb audio|card' | head -n 4 || true
-echo __QWEN__
-test -s ~/Embedded_AI/config/qwen-vision.ini && test -s ~/Embedded_AI/config/qwen-vision.key && echo OK || echo MISSING
-echo __NETWORK__
-ping -c 1 -W 2 dashscope.aliyuncs.com >/dev/null 2>&1 && echo OK || echo FAIL
-echo __FRAME__
-stat -c '%Y:%s' ~/Embedded_AI/captures/latest-frame.jpg 2>/dev/null || echo MISSING
-echo __LOG__
-tail -n 320 ~/Embedded_AI/logs/embedded-ai.log 2>/dev/null || echo 'No embedded-ai.log file yet.'
-)SH";
-
-    const QString output = runSshTextCommand(remoteCommand, 10000);
-    auto section = [&output](const QString& name, const QString& nextName = QString()) {
-        const QString marker = "__" + name + "__";
-        const int start = output.indexOf(marker);
-        if (start < 0) {
-            return QString();
+    const QString sshTarget = buildSshTarget(state_.activeHost);
+    const QString lastSignature = lastFrameSignature_;
+    refreshWatcher_->setFuture(QtConcurrent::run([sshTarget, lastSignature]() {
+        HealthCheckResult result;
+        result.output = runSshTextCommandForTarget(sshTarget, healthCheckCommand(), 10000);
+        if (!result.output.contains("__SERVICE__")) {
+            result.errorText = result.output.trimmed();
+            return result;
         }
-        int valueStart = start + marker.size();
-        if (valueStart < output.size() && output[valueStart] == '\n') {
-            ++valueStart;
-        }
-        int end = output.size();
-        if (!nextName.isEmpty()) {
-            const int next = output.indexOf("__" + nextName + "__", valueStart);
-            if (next >= 0) {
-                end = next;
+        const QString remoteSignature = sectionValue(result.output, "FRAME", "LOG");
+        if (!remoteSignature.isEmpty() && remoteSignature != "MISSING" && remoteSignature != lastSignature) {
+            const QByteArray encoded = runSshBinaryCommandForTarget(sshTarget, frameFetchCommand(), 9000);
+            const QByteArray bytes = QByteArray::fromBase64(encoded.trimmed());
+            if (!bytes.isEmpty() && bytes.startsWith(QByteArray::fromHex("FFD8FF"))) {
+                result.frameBytes = bytes;
             }
         }
-        return output.mid(valueStart, end - valueStart).trimmed();
-    };
+        result.ok = true;
+        return result;
+    }));
+}
 
-    const QString service = section("SERVICE", "SERIAL");
-    const QString serial = section("SERIAL", "VIDEO");
-    const QString video = section("VIDEO", "AUDIO");
-    const QString audio = section("AUDIO", "QWEN");
-    const QString qwen = section("QWEN", "NETWORK");
-    const QString apiNetwork = section("NETWORK", "FRAME");
-    const QString frameSignature = section("FRAME", "LOG");
-    state_.logText = section("LOG");
+void ConnectionManager::handleAsyncHealthRefreshFinished() {
+    const HealthCheckResult result = refreshWatcher_->result();
+    if (!result.ok) {
+        state_.assistantStatus = AssistantStatus::Error;
+        state_.assistantStatusText = "后台刷新失败";
+        state_.warning = result.errorText.isEmpty() ? "SSH 健康检查没有返回有效结果。" : result.errorText.left(260);
+        publish();
+    } else {
+        const QString remoteSignature = sectionValue(result.output, "FRAME", "LOG");
+        if (!result.frameBytes.isEmpty()) {
+            storeLatestFrameBytes(remoteSignature, result.frameBytes);
+        } else {
+            loadRecentFrames();
+            state_.localFramePath = state_.recentFramePaths.isEmpty() ? QString() : state_.recentFramePaths.first();
+        }
+        applyHealthOutput(result.output);
+        parseConversationRecords();
+        publish();
+    }
 
-    fetchLatestFrame(frameSignature);
+    if (refreshQueued_) {
+        refreshQueued_ = false;
+        QTimer::singleShot(0, this, [this]() {
+            refreshNow();
+        });
+    }
+}
+
+void ConnectionManager::applyHealthOutput(const QString& output) {
+    const QString service = sectionValue(output, "SERVICE", "SERIAL");
+    const QString serial = sectionValue(output, "SERIAL", "VIDEO");
+    const QString video = sectionValue(output, "VIDEO", "AUDIO");
+    const QString audio = sectionValue(output, "AUDIO", "QWEN");
+    const QString qwen = sectionValue(output, "QWEN", "NETWORK");
+    const QString apiNetwork = sectionValue(output, "NETWORK", "FRAME");
+    state_.logText = sectionValue(output, "LOG");
 
     const bool serviceOk = service == "active";
     const bool serialOk = !serial.isEmpty();
@@ -318,7 +415,6 @@ tail -n 320 ~/Embedded_AI/logs/embedded-ai.log 2>/dev/null || echo 'No embedded-
     updateAssistantStatus(serviceOk, buttonEventCount, latestSession);
     state_.serviceActive = serviceOk;
     state_.buttonReady = state_.assistantStatus == AssistantStatus::Ready;
-    parseConversationRecords();
 
     state_.hardwareItems = {
         {"树莓派网络", "✅ Ping 和 SSH 正常：" + state_.activeHost, HealthLevel::Ok},
@@ -367,7 +463,7 @@ QByteArray ConnectionManager::runSshBinaryCommand(const QString& remoteCommand, 
     return ssh.readAllStandardOutput();
 }
 
-void ConnectionManager::fetchLatestFrame(const QString& remoteSignature) {
+void ConnectionManager::storeLatestFrameBytes(const QString& remoteSignature, const QByteArray& bytes) {
     loadRecentFrames();
     if (remoteSignature.isEmpty() || remoteSignature == "MISSING") {
         state_.localFramePath = state_.recentFramePaths.isEmpty() ? QString() : state_.recentFramePaths.first();
@@ -377,9 +473,6 @@ void ConnectionManager::fetchLatestFrame(const QString& remoteSignature) {
         state_.localFramePath = state_.recentFramePaths.first();
         return;
     }
-
-    const QByteArray encoded = runSshBinaryCommand("test -s ~/Embedded_AI/captures/latest-frame.jpg && base64 -w 0 ~/Embedded_AI/captures/latest-frame.jpg", 9000);
-    const QByteArray bytes = QByteArray::fromBase64(encoded.trimmed());
     if (bytes.isEmpty() || !bytes.startsWith(QByteArray::fromHex("FFD8FF"))) {
         state_.localFramePath = state_.recentFramePaths.isEmpty() ? QString() : state_.recentFramePaths.first();
         return;
