@@ -120,17 +120,6 @@ void LiquidNavButton::paintEvent(QPaintEvent* event) {
     painter.setPen(QPen(QColor(255, 255, 255, 14 + static_cast<int>(energy * 34)), 0.8));
     painter.drawPath(inner);
 
-    if (active > 0.01) {
-        const QRectF indicator(bounds.left() + 5.0, bounds.center().y() - 12.0, 3.5, 24.0);
-        QLinearGradient indicatorGlow(indicator.topLeft(), indicator.bottomLeft());
-        indicatorGlow.setColorAt(0.0, QColor(191, 238, 255, 50));
-        indicatorGlow.setColorAt(0.5, QColor(105, 201, 255, 245));
-        indicatorGlow.setColorAt(1.0, QColor(87, 156, 255, 60));
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(indicatorGlow);
-        painter.drawRoundedRect(indicator, 2.0, 2.0);
-    }
-
     QFont labelFont = font();
     labelFont.setWeight(active > 0.45 ? QFont::DemiBold : QFont::Medium);
     painter.setFont(labelFont);
