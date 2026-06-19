@@ -5,6 +5,7 @@
 
 class QPushButton;
 class QVBoxLayout;
+class QLabel;
 
 class ChatPage : public BasePage {
 public:
@@ -14,8 +15,12 @@ public:
 
 private:
     void clearMessages();
+    void updateStagePanel(const ConnectionState& state);
 
     QVBoxLayout* messages_ = nullptr;
     QPushButton* triggerButton_ = nullptr;
+    QLabel* stageTitle_ = nullptr;
+    QLabel* stageStatus_ = nullptr;
+    QLabel* stageMeta_ = nullptr;
     QString lastSessionKey_;
 };

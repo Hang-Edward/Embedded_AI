@@ -2,13 +2,82 @@
 
 #include "ChatMessageWidget.h"
 
+#include <QFrame>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QPushButton>
 #include <QScrollArea>
-#include <QFrame>
 #include <QVBoxLayout>
+
+namespace {
+
+QString stageTitleText(const ConnectionState& state) {
+    switch (state.assistantStatus) {
+    case AssistantStatus::Ready:
+        return QStringLiteral("任务舞台已就绪");
+    case AssistantStatus::Listening:
+        return QStringLiteral("正在接收语音指令");
+    case AssistantStatus::Thinking:
+        return QStringLiteral("AI 正在分析当前画面");
+    case AssistantStatus::Warning:
+        return QStringLiteral("系统可运行，但有待检查项");
+    case AssistantStatus::Error:
+        return QStringLiteral("任务流程中断");
+    case AssistantStatus::Connecting:
+        return QStringLiteral("正在建立桥接链路");
+    case AssistantStatus::Offline:
+        return QStringLiteral("桥接链路离线");
+    }
+    return QStringLiteral("任务舞台等待中");
+}
+
+QString stageStatusText(const ConnectionState& state) {
+    if (!state.assistantStatusText.isEmpty()) {
+        return state.assistantStatusText;
+    }
+    return QStringLiteral("等待树莓派返回最新状态。");
+}
+
+QString stageMetaText(const ConnectionState& state) {
+    QStringList parts;
+    parts << QStringLiteral("触发：三键键盘 K-B");
+    parts << QStringLiteral("摄像头：Logitech C270");
+    if (!state.activeHost.isEmpty()) {
+        parts << QStringLiteral("主机：%1").arg(state.activeHost);
+    }
+    if (!state.recentRecords.isEmpty()) {
+        parts << QStringLiteral("最新记录：%1").arg(state.recentRecords.first().title);
+    } else if (!state.localFramePath.isEmpty()) {
+        parts << QStringLiteral("画面缓存：已同步");
+    } else {
+        parts << QStringLiteral("画面缓存：等待同步");
+    }
+    return parts.join(QStringLiteral("    ·    "));
+}
+
+} // namespace
 
 ChatPage::ChatPage(QWidget* parent)
     : BasePage("实时对话", "按下三键键盘 K-B 后，语音输入、拍照画面和 AI 回复会像网页版 LLM 对话一样显示在这里。", parent) {
+    auto* stagePanel = new QWidget(this);
+    stagePanel->setObjectName("chatStagePanel");
+    auto* stageLayout = new QVBoxLayout(stagePanel);
+    stageLayout->setContentsMargins(16, 14, 16, 14);
+    stageLayout->setSpacing(6);
+
+    stageTitle_ = new QLabel(QStringLiteral("任务舞台已就绪"), stagePanel);
+    stageTitle_->setObjectName("chatStageTitle");
+    stageStatus_ = new QLabel(QStringLiteral("连接成功后，这里会即时显示录音、识别和分析阶段。"), stagePanel);
+    stageStatus_->setObjectName("chatStageStatus");
+    stageStatus_->setWordWrap(true);
+    stageMeta_ = new QLabel(QStringLiteral("触发：三键键盘 K-B    ·    摄像头：Logitech C270    ·    结果：等待首条记录"), stagePanel);
+    stageMeta_->setObjectName("chatStageMeta");
+    stageMeta_->setWordWrap(true);
+
+    stageLayout->addWidget(stageTitle_);
+    stageLayout->addWidget(stageStatus_);
+    stageLayout->addWidget(stageMeta_);
+
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setObjectName("chatScroll");
@@ -32,6 +101,7 @@ ChatPage::ChatPage(QWidget* parent)
         appendDemoConversation();
     });
 
+    bodyLayout()->addWidget(stagePanel);
     bodyLayout()->addWidget(scroll, 1);
     bodyLayout()->addWidget(triggerButton_, 0, Qt::AlignRight);
     appendDemoConversation();
@@ -45,9 +115,15 @@ void ChatPage::appendDemoConversation() {
     system->setMessage("等待硬件触发",
         "连接成功后，按下三键键盘 K-B 即可开始 5 秒语音输入。完成后这里会显示摄像头画面、识别流程和 AI 回答。");
     messages_->insertWidget(insertAt, system);
+
+    ConnectionState placeholder;
+    placeholder.assistantStatus = AssistantStatus::Connecting;
+    updateStagePanel(placeholder);
 }
 
 void ChatPage::setLatestSession(const ConnectionState& state) {
+    updateStagePanel(state);
+
     QString newKey;
     if (state.recentRecords.isEmpty()) {
         newKey = "empty|" + state.assistantStatusText + "|" + state.localFramePath;
@@ -98,4 +174,10 @@ void ChatPage::clearMessages() {
         }
         delete item;
     }
+}
+
+void ChatPage::updateStagePanel(const ConnectionState& state) {
+    stageTitle_->setText(stageTitleText(state));
+    stageStatus_->setText(stageStatusText(state));
+    stageMeta_->setText(stageMetaText(state));
 }

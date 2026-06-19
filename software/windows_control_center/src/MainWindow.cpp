@@ -308,7 +308,7 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
 
     setMetricChipText(
         networkChip_,
-        QStringLiteral("连接链路"),
+        QStringLiteral("🌐 连接链路"),
         state.sshOnline ? QStringLiteral("树莓派在线 / SSH 已握手")
                         : state.piReachable ? QStringLiteral("已 Ping 通 / SSH 异常")
                                             : QStringLiteral("等待树莓派连接"),
@@ -317,7 +317,7 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
                                             : QStringLiteral("error"));
     setMetricChipText(
         phaseChip_,
-        QStringLiteral("当前阶段"),
+        QStringLiteral("🧭 当前阶段"),
         phaseTextFor(state),
         state.assistantStatus == AssistantStatus::Ready
             ? QStringLiteral("ready")
@@ -330,7 +330,7 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
                     : QStringLiteral("warning"));
     setMetricChipText(
         triggerChip_,
-        QStringLiteral("触发方式"),
+        QStringLiteral("🎛 触发方式"),
         triggerTextFor(state),
         state.buttonReady ? QStringLiteral("ready")
                           : (state.assistantStatus == AssistantStatus::Listening
@@ -339,7 +339,7 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
                                 : QStringLiteral("warning"));
     setMetricChipText(
         modeChip_,
-        QStringLiteral("演示模式"),
+        QStringLiteral("🖥 演示模式"),
         displayModeTextFor(),
         QStringLiteral("neutral"));
 

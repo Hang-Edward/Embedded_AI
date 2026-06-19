@@ -177,6 +177,27 @@ QLabel#metricChip[tone="neutral"] {
     background: rgba(24, 47, 92, 0.34);
     border-color: rgba(134, 191, 255, 0.20);
 }
+QWidget#chatStagePanel {
+    background: rgba(10, 24, 52, 0.42);
+    border: 1px solid rgba(185, 225, 255, 0.16);
+    border-radius: 18px;
+}
+QLabel#chatStageTitle {
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: 850;
+}
+QLabel#chatStageStatus {
+    color: #dcecff;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 145%;
+}
+QLabel#chatStageMeta {
+    color: #9fb8d7;
+    font-size: 12px;
+    line-height: 150%;
+}
 QLabel#cardTitle, QLabel#messageTitle {
     font-weight: 800;
     color: #ffffff;
