@@ -36,16 +36,26 @@ private:
     void updateResponsiveMode();
     void setWatchLive(bool enabled);
     QPushButton* makeNavButton(const QString& key, const QString& text);
+    void setMetricChipText(QLabel* chip, const QString& label, const QString& value, const QString& tone = QString());
+    QString phaseTextFor(const ConnectionState& state) const;
+    QString triggerTextFor(const ConnectionState& state) const;
+    QString displayModeTextFor() const;
 
     AppConfig config_;
     ConnectionManager connection_;
     QWidget* central_ = nullptr;
     QWidget* sidebar_ = nullptr;
+    QLabel* heroEyebrow_ = nullptr;
     QLabel* connectionTitle_ = nullptr;
     QLabel* connectionSubtitle_ = nullptr;
     QLabel* lanWarning_ = nullptr;
     QLabel* actionBanner_ = nullptr;
+    QLabel* networkChip_ = nullptr;
+    QLabel* phaseChip_ = nullptr;
+    QLabel* triggerChip_ = nullptr;
+    QLabel* modeChip_ = nullptr;
     QWidget* pageSurface_ = nullptr;
+    QWidget* statusSurface_ = nullptr;
     QStackedWidget* stack_ = nullptr;
     QMap<QString, QPushButton*> navButtons_;
     QTimer* liveTimer_ = nullptr;

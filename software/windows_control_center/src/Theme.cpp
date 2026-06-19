@@ -90,6 +90,16 @@ QLabel#connectionTitle {
     font-weight: 800;
     color: #ffffff;
 }
+QWidget#statusColumn {
+    background: transparent;
+}
+QLabel#heroEyebrow {
+    color: rgba(213, 235, 255, 0.78);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
 QLabel#connectionSubtitle, QLabel#pageSubtitle, QLabel#cardDetail {
     color: #bfd0e8;
 }
@@ -97,6 +107,15 @@ QLabel#pageTitle {
     font-size: 28px;
     font-weight: 900;
     color: #ffffff;
+}
+QLabel#statusColumnTitle {
+    font-size: 20px;
+    font-weight: 850;
+    color: #ffffff;
+}
+QLabel#statusColumnSubtitle, QLabel#statusHint {
+    color: #bfd0e8;
+    line-height: 145%;
 }
 QLabel#readyText {
     color: #e5f1ff;
@@ -110,12 +129,12 @@ QLabel#readyDot[status="ready"] { background: #34d399; }
 QLabel#readyDot[status="busy"], QLabel#readyDot[status="warning"] { background: #fbbf24; }
 QLabel#readyDot[status="error"] { background: #fb7185; }
 QLabel#actionBanner {
-    background: rgba(25, 45, 86, 116);
-    border: 1px solid rgba(170, 215, 255, 64);
+    background: rgba(18, 34, 70, 0.58);
+    border: 1px solid rgba(170, 215, 255, 48);
     border-radius: 16px;
     color: #e6f3ff;
     font-weight: 800;
-    padding: 11px 15px;
+    padding: 12px 14px;
 }
 QLabel#actionBanner[status="ready"] {
     background: rgba(17, 95, 66, 158);
@@ -130,6 +149,33 @@ QLabel#actionBanner[status="error"] {
     background: rgba(110, 24, 40, 178);
     border-color: rgba(255, 128, 150, 145);
     color: #ffe4e8;
+}
+QLabel#metricChip {
+    background: rgba(8, 21, 45, 0.34);
+    border: 1px solid rgba(185, 225, 255, 0.14);
+    border-radius: 16px;
+    padding: 11px 13px;
+    color: #e7f4ff;
+}
+QLabel#metricChip[tone="ready"] {
+    background: rgba(18, 84, 61, 0.42);
+    border-color: rgba(81, 252, 181, 0.28);
+}
+QLabel#metricChip[tone="busy"] {
+    background: rgba(104, 74, 16, 0.42);
+    border-color: rgba(255, 214, 96, 0.30);
+}
+QLabel#metricChip[tone="warning"] {
+    background: rgba(76, 61, 20, 0.38);
+    border-color: rgba(255, 210, 112, 0.24);
+}
+QLabel#metricChip[tone="error"] {
+    background: rgba(104, 24, 42, 0.42);
+    border-color: rgba(255, 132, 156, 0.28);
+}
+QLabel#metricChip[tone="neutral"] {
+    background: rgba(24, 47, 92, 0.34);
+    border-color: rgba(134, 191, 255, 0.20);
 }
 QLabel#cardTitle, QLabel#messageTitle {
     font-weight: 800;
