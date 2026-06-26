@@ -10,14 +10,19 @@
 #include "Theme.h"
 
 #include <QApplication>
+#include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPointer>
 #include <QPushButton>
 #include <QResizeEvent>
+#include <QScrollArea>
+#include <QSizePolicy>
 #include <QStackedWidget>
 #include <QStyle>
 #include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace {
@@ -69,14 +74,84 @@ QString statusClassFor(const ConnectionState& state) {
     return QStringLiteral("connecting");
 }
 
+QString inspectorCardHtml(const QString& label, const QString& value) {
+    const QString safeLabel = label.toHtmlEscaped();
+    const QString safeValue = value.toHtmlEscaped().replace("\n", "<br/>");
+    return QStringLiteral(
+               "<div style='font-size:11px;font-weight:700;color:rgba(214,233,255,0.76);letter-spacing:0.4px;'>%1</div>"
+               "<div style='margin-top:6px;font-size:14px;font-weight:700;color:#eef6ff;line-height:1.45;'>%2</div>")
+        .arg(safeLabel, safeValue);
+}
+
+QString inspectorHeadlineHtml(const QString& label, const QString& value) {
+    const QString safeLabel = label.toHtmlEscaped();
+    const QString safeValue = value.toHtmlEscaped().replace("\n", "<br/>");
+    return QStringLiteral(
+               "<div style='font-size:11px;font-weight:700;color:rgba(214,233,255,0.74);letter-spacing:0.4px;'>%1</div>"
+               "<div style='margin-top:7px;font-size:15px;font-weight:800;color:#f4f8ff;line-height:1.48;'>%2</div>")
+        .arg(safeLabel, safeValue);
+}
+
+void animateWidgetRefresh(QWidget* widget, int duration = 240) {
+    if (widget == nullptr) {
+        return;
+    }
+    widget->setProperty("flash", true);
+    widget->style()->unpolish(widget);
+    widget->style()->polish(widget);
+    QPointer<QWidget> guard(widget);
+    QTimer::singleShot(duration, widget, [guard]() {
+        if (guard == nullptr) {
+            return;
+        }
+        guard->setProperty("flash", false);
+        guard->style()->unpolish(guard);
+        guard->style()->polish(guard);
+        guard->update();
+    });
+}
+
+void refreshLayoutAround(QWidget* widget) {
+    QWidget* current = widget;
+    int depth = 0;
+    while (current != nullptr && depth < 5) {
+        current->updateGeometry();
+        if (current->layout() != nullptr) {
+            current->layout()->invalidate();
+            current->layout()->activate();
+        }
+        current = current->parentWidget();
+        ++depth;
+    }
+}
+
+void setAnimatedLabelText(QLabel* label, const QString& text, bool richText = false, int duration = 240) {
+    if (label == nullptr) {
+        return;
+    }
+    const QString oldText = label->text();
+    if (richText) {
+        label->setTextFormat(Qt::RichText);
+    } else {
+        label->setTextFormat(Qt::PlainText);
+    }
+    if (oldText == text) {
+        return;
+    }
+    label->setText(text);
+    label->updateGeometry();
+    refreshLayoutAround(label);
+    animateWidgetRefresh(label, duration);
+}
+
 } // namespace
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), connection_(config_, this) {
     config_.load();
     setWindowTitle(QStringLiteral("Embedded AI Reality Bridge"));
-    resize(1280, 820);
-    setMinimumSize(920, 620);
+    resize(1380, 920);
+    setMinimumSize(1040, 720);
     qApp->setStyleSheet(Theme::styleSheet());
     buildUi();
 
@@ -119,31 +194,60 @@ void MainWindow::buildUi() {
 void MainWindow::buildSidebar(QHBoxLayout* root) {
     sidebar_ = new GlassSurface(GlassSurface::Tone::Sidebar, central_);
     sidebar_->setObjectName(QStringLiteral("sidebar"));
-    sidebar_->setFixedWidth(232);
+    sidebar_->setFixedWidth(280);
     auto* side = new QVBoxLayout(sidebar_);
-    side->setContentsMargins(16, 18, 16, 16);
-    side->setSpacing(10);
+    side->setContentsMargins(18, 18, 18, 18);
+    side->setSpacing(12);
 
     auto* title = new QLabel(QStringLiteral("Embedded AI\nReality Bridge"), sidebar_);
     title->setObjectName(QStringLiteral("appTitle"));
     side->addWidget(title);
-    side->addSpacing(16);
+    auto* sectionTag = new QLabel(QStringLiteral("AI DESKTOP WORKBENCH"), sidebar_);
+    sectionTag->setObjectName(QStringLiteral("sidebarTag"));
+    side->addWidget(sectionTag);
 
-    side->addWidget(makeNavButton(QStringLiteral("chat"), QStringLiteral("实时对话")));
-    side->addWidget(makeNavButton(QStringLiteral("history"), QStringLiteral("历史记录")));
-    side->addWidget(makeNavButton(QStringLiteral("hardware"), QStringLiteral("连接诊断")));
-    side->addWidget(makeNavButton(QStringLiteral("camera"), QStringLiteral("摄像头画面")));
-    side->addWidget(makeNavButton(QStringLiteral("logs"), QStringLiteral("原始日志")));
-    side->addWidget(makeNavButton(QStringLiteral("settings"), QStringLiteral("设置")));
+    auto* summaryCard = new QWidget(sidebar_);
+    summaryCard->setObjectName(QStringLiteral("sidebarSummaryCard"));
+    auto* summaryLayout = new QVBoxLayout(summaryCard);
+    summaryLayout->setContentsMargins(14, 14, 14, 14);
+    summaryLayout->setSpacing(6);
+    sidebarSummaryTitle_ = new QLabel(QStringLiteral("等待桥接"), summaryCard);
+    sidebarSummaryTitle_->setObjectName(QStringLiteral("sidebarSummaryTitle"));
+    sidebarSummaryBody_ = new QLabel(QStringLiteral("Windows 控制端正在等待树莓派、硬件触发器和摄像头同步。"), summaryCard);
+    sidebarSummaryBody_->setObjectName(QStringLiteral("sidebarSummaryBody"));
+    sidebarSummaryBody_->setWordWrap(true);
+    summaryLayout->addWidget(sidebarSummaryTitle_);
+    summaryLayout->addWidget(sidebarSummaryBody_);
+    side->addWidget(summaryCard);
+
+    auto* navLabel = new QLabel(QStringLiteral("工作区"), sidebar_);
+    navLabel->setObjectName(QStringLiteral("sidebarSectionLabel"));
+    side->addWidget(navLabel);
+
+    side->addWidget(makeNavButton(QStringLiteral("chat"), QStringLiteral("实时对话"), QStringLiteral("当前轮次、图像与 AI 回复"), QStringLiteral("◉")));
+    side->addWidget(makeNavButton(QStringLiteral("history"), QStringLiteral("历史记录"), QStringLiteral("查看最近完成的分析记录"), QStringLiteral("↺")));
+    side->addWidget(makeNavButton(QStringLiteral("hardware"), QStringLiteral("连接诊断"), QStringLiteral("硬件、串口与服务链路状态"), QStringLiteral("◎")));
+    side->addWidget(makeNavButton(QStringLiteral("camera"), QStringLiteral("摄像头画面"), QStringLiteral("检查当前同步回来的现场画面"), QStringLiteral("◌")));
+    side->addWidget(makeNavButton(QStringLiteral("logs"), QStringLiteral("原始日志"), QStringLiteral("读取树莓派侧完整执行日志"), QStringLiteral("⋯")));
+    side->addWidget(makeNavButton(QStringLiteral("settings"), QStringLiteral("设置"), QStringLiteral("SSH、项目目录与服务控制"), QStringLiteral("⚙")));
     side->addStretch(1);
 
-    auto* reconnect = new QPushButton(QStringLiteral("重新连接"), sidebar_);
+    auto* reconnectWrap = new QWidget(sidebar_);
+    reconnectWrap->setObjectName(QStringLiteral("sidebarReconnectWrap"));
+    auto* reconnectLayout = new QVBoxLayout(reconnectWrap);
+    reconnectLayout->setContentsMargins(0, 0, 0, 0);
+    reconnectLayout->setSpacing(8);
+    auto* reconnectLabel = new QLabel(QStringLiteral("快速操作"), reconnectWrap);
+    reconnectLabel->setObjectName(QStringLiteral("sidebarSectionLabel"));
+    auto* reconnect = new QPushButton(QStringLiteral("重新连接"), reconnectWrap);
     reconnect->setObjectName(QStringLiteral("primaryButton"));
     QObject::connect(reconnect, &QPushButton::clicked, this, [this]() {
         settingsPage_->saveToConfig();
         connection_.reconnect();
     });
-    side->addWidget(reconnect);
+    reconnectLayout->addWidget(reconnectLabel);
+    reconnectLayout->addWidget(reconnect);
+    side->addWidget(reconnectWrap);
 
     root->addWidget(sidebar_);
 }
@@ -151,24 +255,44 @@ void MainWindow::buildSidebar(QHBoxLayout* root) {
 void MainWindow::buildHeader(QVBoxLayout* rightSide) {
     auto* header = new GlassSurface(GlassSurface::Tone::Elevated, central_);
     header->setObjectName(QStringLiteral("glassHeader"));
-    auto* layout = new QVBoxLayout(header);
-    layout->setContentsMargins(22, 18, 22, 18);
-    layout->setSpacing(8);
+    auto* layout = new QHBoxLayout(header);
+    layout->setContentsMargins(20, 16, 20, 16);
+    layout->setSpacing(14);
 
-    heroEyebrow_ = new QLabel(QStringLiteral("AI 现实桥接控制台"), header);
+    auto* titleWrap = new QWidget(header);
+    auto* titleLayout = new QVBoxLayout(titleWrap);
+    titleLayout->setContentsMargins(0, 0, 0, 0);
+    titleLayout->setSpacing(3);
+
+    heroEyebrow_ = new QLabel(QStringLiteral("AI 现实桥接控制台"), titleWrap);
     heroEyebrow_->setObjectName(QStringLiteral("heroEyebrow"));
 
-    connectionTitle_ = new QLabel(QStringLiteral("正在连接树莓派..."), header);
+    connectionTitle_ = new QLabel(QStringLiteral("正在连接树莓派..."), titleWrap);
     connectionTitle_->setObjectName(QStringLiteral("connectionTitle"));
     connectionSubtitle_ = new QLabel(
         QStringLiteral("优先尝试最近一次成功 IP，然后尝试 ssh ch@172.20.10.6。"),
-        header);
+        titleWrap);
     connectionSubtitle_->setObjectName(QStringLiteral("connectionSubtitle"));
-    connectionSubtitle_->setWordWrap(true);
+    connectionSubtitle_->setWordWrap(false);
+    connectionSubtitle_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+    titleLayout->addWidget(heroEyebrow_);
+    titleLayout->addWidget(connectionTitle_);
+    titleLayout->addWidget(connectionSubtitle_);
 
-    layout->addWidget(heroEyebrow_);
-    layout->addWidget(connectionTitle_);
-    layout->addWidget(connectionSubtitle_);
+    auto* headerMetrics = new QWidget(header);
+    headerMetrics->setObjectName(QStringLiteral("headerMetrics"));
+    auto* metricsLayout = new QHBoxLayout(headerMetrics);
+    metricsLayout->setContentsMargins(0, 0, 0, 0);
+    metricsLayout->setSpacing(10);
+    headerHostPill_ = new QLabel(QStringLiteral("等待主机"), headerMetrics);
+    headerHostPill_->setObjectName(QStringLiteral("headerMetaPill"));
+    headerStatusPill_ = new QLabel(QStringLiteral("连接检测中"), headerMetrics);
+    headerStatusPill_->setObjectName(QStringLiteral("headerStatusPill"));
+    metricsLayout->addWidget(headerHostPill_);
+    metricsLayout->addWidget(headerStatusPill_);
+
+    layout->addWidget(titleWrap, 1);
+    layout->addWidget(headerMetrics, 0, Qt::AlignVCenter | Qt::AlignRight);
     rightSide->addWidget(header);
 }
 
@@ -205,50 +329,151 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
 
     statusSurface_ = new GlassSurface(GlassSurface::Tone::Elevated, central_);
     statusSurface_->setObjectName(QStringLiteral("statusColumn"));
-    statusSurface_->setFixedWidth(328);
-    auto* statusLayout = new QVBoxLayout(statusSurface_);
+    statusSurface_->setFixedWidth(318);
+    auto* statusSurfaceLayout = new QVBoxLayout(statusSurface_);
+    statusSurfaceLayout->setContentsMargins(0, 0, 0, 0);
+
+    auto* statusScroll = new QScrollArea(statusSurface_);
+    statusScroll->setObjectName(QStringLiteral("statusScroll"));
+    statusScroll->setWidgetResizable(true);
+    statusScroll->setFrameShape(QFrame::NoFrame);
+    statusScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    statusScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    statusScroll->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
+    statusScroll->viewport()->setAutoFillBackground(false);
+
+    auto* statusHost = new QWidget(statusScroll);
+    statusHost->setObjectName(QStringLiteral("statusHost"));
+    statusHost->setAttribute(Qt::WA_TranslucentBackground, true);
+    statusHost->setAutoFillBackground(false);
+    auto* statusLayout = new QVBoxLayout(statusHost);
     statusLayout->setContentsMargins(18, 18, 18, 18);
     statusLayout->setSpacing(12);
 
-    auto* statusTitle = new QLabel(QStringLiteral("系统状态"), statusSurface_);
+    auto* statusHeader = new QWidget(statusSurface_);
+    statusHeader->setObjectName(QStringLiteral("statusColumnHeader"));
+    auto* statusHeaderLayout = new QHBoxLayout(statusHeader);
+    statusHeaderLayout->setContentsMargins(0, 0, 0, 0);
+    statusHeaderLayout->setSpacing(10);
+
+    statusBeacon_ = new QLabel(statusHeader);
+    statusBeacon_->setObjectName(QStringLiteral("statusBeacon"));
+    statusBeacon_->setFixedSize(14, 14);
+
+    auto* statusTextWrap = new QWidget(statusHeader);
+    auto* statusTextLayout = new QVBoxLayout(statusTextWrap);
+    statusTextLayout->setContentsMargins(0, 0, 0, 0);
+    statusTextLayout->setSpacing(2);
+
+    auto* statusTitle = new QLabel(QStringLiteral("系统状态总览"), statusTextWrap);
     statusTitle->setObjectName(QStringLiteral("statusColumnTitle"));
-    auto* statusSubtitle = new QLabel(QStringLiteral("这里集中展示连接、阶段、触发与演示模式，不再占用主舞台。"), statusSurface_);
+    auto* statusSubtitle = new QLabel(QStringLiteral("把连接、阶段与恢复建议收拢在这里，主舞台只保留当前对话。"), statusTextWrap);
     statusSubtitle->setObjectName(QStringLiteral("statusColumnSubtitle"));
     statusSubtitle->setWordWrap(true);
+    statusSubtitle->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+
+    statusTextLayout->addWidget(statusTitle);
+    statusTextLayout->addWidget(statusSubtitle);
+    statusHeaderLayout->addWidget(statusBeacon_, 0, Qt::AlignTop);
+    statusHeaderLayout->addWidget(statusTextWrap, 1);
 
     actionBanner_ = new QLabel(QStringLiteral("正在自动检测树莓派、服务、摄像头和日志..."), statusSurface_);
     actionBanner_->setObjectName(QStringLiteral("actionBanner"));
     actionBanner_->setWordWrap(true);
+    actionBanner_->setMargin(12);
+    actionBanner_->setMinimumHeight(50);
+    actionBanner_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
+
+    healthHeadline_ = new QLabel(QStringLiteral("等待第一轮系统诊断结果"), statusSurface_);
+    healthHeadline_->setObjectName(QStringLiteral("healthHeadline"));
+    healthHeadline_->setWordWrap(true);
+    healthHeadline_->setMargin(12);
+    healthHeadline_->setMinimumHeight(58);
+    healthHeadline_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 
     networkChip_ = new QLabel(statusSurface_);
     phaseChip_ = new QLabel(statusSurface_);
     triggerChip_ = new QLabel(statusSurface_);
     modeChip_ = new QLabel(statusSurface_);
+    nextActionCard_ = new QLabel(statusSurface_);
     const QList<QLabel*> chips {networkChip_, phaseChip_, triggerChip_, modeChip_};
     for (QLabel* chip : chips) {
         chip->setObjectName(QStringLiteral("metricChip"));
         chip->setWordWrap(true);
+        chip->setMargin(11);
+        chip->setMinimumHeight(58);
+        chip->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     }
+    nextActionCard_->setObjectName(QStringLiteral("statusActionCard"));
+    nextActionCard_->setWordWrap(true);
+    nextActionCard_->setMargin(13);
+    nextActionCard_->setMinimumHeight(74);
+    nextActionCard_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 
-    lanWarning_ = new QLabel(statusSurface_);
+    lanWarning_ = new QLabel(statusHost);
     lanWarning_->setObjectName(QStringLiteral("statusHint"));
     lanWarning_->setWordWrap(true);
+    lanWarning_->setMargin(6);
+    lanWarning_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     lanWarning_->hide();
 
-    statusLayout->addWidget(statusTitle);
-    statusLayout->addWidget(statusSubtitle);
+    statusLayout->addWidget(statusHeader);
     statusLayout->addWidget(actionBanner_);
-    statusLayout->addWidget(networkChip_);
-    statusLayout->addWidget(phaseChip_);
-    statusLayout->addWidget(triggerChip_);
-    statusLayout->addWidget(modeChip_);
+    statusLayout->addWidget(healthHeadline_);
+    sectionPrimaryToggle_ = new QToolButton(statusHost);
+    sectionPrimaryToggle_->setObjectName(QStringLiteral("inspectorToggle"));
+    sectionPrimaryToggle_->setText(QStringLiteral("链路与阶段"));
+    sectionPrimaryToggle_->setCheckable(true);
+    sectionPrimaryToggle_->setChecked(true);
+    sectionPrimaryToggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    sectionPrimaryToggle_->setArrowType(Qt::DownArrow);
+
+    sectionPrimaryContainer_ = new QWidget(statusHost);
+    sectionPrimaryContainer_->setObjectName(QStringLiteral("inspectorSectionBody"));
+    auto* primaryLayout = new QVBoxLayout(sectionPrimaryContainer_);
+    primaryLayout->setContentsMargins(0, 0, 0, 0);
+    primaryLayout->setSpacing(10);
+    primaryLayout->addWidget(networkChip_);
+    primaryLayout->addWidget(phaseChip_);
+    primaryLayout->addWidget(triggerChip_);
+    primaryLayout->addWidget(modeChip_);
+
+    sectionRecoveryToggle_ = new QToolButton(statusHost);
+    sectionRecoveryToggle_->setObjectName(QStringLiteral("inspectorToggle"));
+    sectionRecoveryToggle_->setText(QStringLiteral("建议与恢复"));
+    sectionRecoveryToggle_->setCheckable(true);
+    sectionRecoveryToggle_->setChecked(true);
+    sectionRecoveryToggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    sectionRecoveryToggle_->setArrowType(Qt::DownArrow);
+
+    sectionRecoveryContainer_ = new QWidget(statusHost);
+    sectionRecoveryContainer_->setObjectName(QStringLiteral("inspectorSectionBody"));
+    auto* recoveryLayout = new QVBoxLayout(sectionRecoveryContainer_);
+    recoveryLayout->setContentsMargins(0, 0, 0, 0);
+    recoveryLayout->setSpacing(10);
+    recoveryLayout->addWidget(nextActionCard_);
+
+    QObject::connect(sectionPrimaryToggle_, &QToolButton::toggled, this, [this](bool checked) {
+        setInspectorSectionExpanded(sectionPrimaryToggle_, sectionPrimaryContainer_, checked);
+    });
+    QObject::connect(sectionRecoveryToggle_, &QToolButton::toggled, this, [this](bool checked) {
+        setInspectorSectionExpanded(sectionRecoveryToggle_, sectionRecoveryContainer_, checked);
+    });
+
+    statusLayout->addWidget(sectionPrimaryToggle_);
+    statusLayout->addWidget(sectionPrimaryContainer_);
+    statusLayout->addWidget(sectionRecoveryToggle_);
+    statusLayout->addWidget(sectionRecoveryContainer_);
     statusLayout->addStretch(1);
-    statusLayout->addWidget(lanWarning_);
+
+    statusScroll->setWidget(statusHost);
+    statusSurfaceLayout->addWidget(statusScroll);
 
     contentRow->addWidget(pageSurface_, 1);
     contentRow->addWidget(statusSurface_);
     rightSide->addLayout(contentRow, 1);
     switchPage(QStringLiteral("chat"));
+    startBeaconPulse();
 }
 
 void MainWindow::switchPage(const QString& key) {
@@ -281,29 +506,49 @@ void MainWindow::switchPage(const QString& key) {
 
 void MainWindow::applyConnectionState(const ConnectionState& state) {
     if (state.sshOnline) {
-        connectionTitle_->setText(QStringLiteral("已连接：ssh ch@") + state.activeHost);
-        connectionSubtitle_->setText(QStringLiteral("正在通过 SSH 自动刷新服务、硬件、日志和最新图片。"));
+        setAnimatedLabelText(connectionTitle_, QStringLiteral("已连接：ssh ch@") + state.activeHost, false, 220);
+        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("正在通过 SSH 自动刷新服务、硬件、日志和最新图片。"), false, 220);
     } else if (state.piReachable) {
-        connectionTitle_->setText(QStringLiteral("树莓派网络可达：") + state.activeHost);
-        connectionSubtitle_->setText(QStringLiteral("Ping 正常，但 SSH 握手失败。请检查 SSH key 或 authorized_keys。"));
+        setAnimatedLabelText(connectionTitle_, QStringLiteral("树莓派网络可达：") + state.activeHost, false, 220);
+        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("Ping 正常，但 SSH 握手失败。请检查 SSH key 或 authorized_keys。"), false, 220);
     } else if (!state.activeHost.isEmpty()) {
-        connectionTitle_->setText(QStringLiteral("正在检测树莓派：") + state.activeHost);
-        connectionSubtitle_->setText(QStringLiteral("先检测网络可达性，再检测 SSH。"));
+        setAnimatedLabelText(connectionTitle_, QStringLiteral("正在检测树莓派：") + state.activeHost, false, 220);
+        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("先检测网络可达性，再检测 SSH。"), false, 220);
     } else {
-        connectionTitle_->setText(QStringLiteral("树莓派未连接"));
-        connectionSubtitle_->setText(QStringLiteral("请确认 PC 与树莓派在同一网络，或在设置页手动输入 ssh ch@ip 后重连。"));
+        setAnimatedLabelText(connectionTitle_, QStringLiteral("树莓派未连接"), false, 220);
+        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("请确认 PC 与树莓派在同一网络，或在设置页手动输入 ssh ch@ip 后重连。"), false, 220);
+    }
+
+    if (headerHostPill_ != nullptr) {
+        const QString hostText = state.activeHost.isEmpty()
+            ? QStringLiteral("主机：等待分配")
+            : QStringLiteral("主机：%1").arg(state.activeHost);
+        setAnimatedLabelText(headerHostPill_, hostText, false, 200);
     }
 
     const QString statusClass = statusClassFor(state);
     const QString cleanStatus = statusTextFor(state);
     actionBanner_->setProperty("status", statusClass);
+    statusBeacon_->setProperty("status", statusClass);
     if (statusClass != lastStatusClass_) {
         actionBanner_->style()->unpolish(actionBanner_);
         actionBanner_->style()->polish(actionBanner_);
+        statusBeacon_->style()->unpolish(statusBeacon_);
+        statusBeacon_->style()->polish(statusBeacon_);
         lastStatusClass_ = statusClass;
+        animateWidgetRefresh(actionBanner_, 260);
     }
-    if (actionBanner_->text() != cleanStatus) {
-        actionBanner_->setText(cleanStatus);
+    setAnimatedLabelText(actionBanner_, inspectorHeadlineHtml(QStringLiteral("实时状态"), cleanStatus), true, 260);
+    if (headerStatusPill_ != nullptr) {
+        setAnimatedLabelText(headerStatusPill_, cleanStatus, false, 220);
+        headerStatusPill_->setProperty("status", statusClass);
+        headerStatusPill_->style()->unpolish(headerStatusPill_);
+        headerStatusPill_->style()->polish(headerStatusPill_);
+    }
+    setAnimatedLabelText(healthHeadline_, inspectorHeadlineHtml(QStringLiteral("系统判断"), healthHeadlineTextFor(state)), true, 250);
+    if (sidebarSummaryTitle_ != nullptr && sidebarSummaryBody_ != nullptr) {
+        setAnimatedLabelText(sidebarSummaryTitle_, phaseTextFor(state), false, 220);
+        setAnimatedLabelText(sidebarSummaryBody_, nextActionTextFor(state), false, 220);
     }
 
     setMetricChipText(
@@ -342,10 +587,21 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
         QStringLiteral("🖥 演示模式"),
         displayModeTextFor(),
         QStringLiteral("neutral"));
+    const QString nextActionText = inspectorCardHtml(QStringLiteral("下一步建议"), nextActionTextFor(state));
+    setAnimatedLabelText(nextActionCard_, nextActionText, true, 240);
+    nextActionCard_->setProperty(
+        "tone",
+        state.sshOnline
+            ? (state.assistantStatus == AssistantStatus::Listening
+                   || state.assistantStatus == AssistantStatus::Thinking)
+                ? QStringLiteral("busy")
+                : QStringLiteral("ready")
+            : QStringLiteral("warning"));
+    nextActionCard_->style()->unpolish(nextActionCard_);
+    nextActionCard_->style()->polish(nextActionCard_);
+    updateInspectorFocus(state);
 
-    lanWarning_->setVisible(!state.warning.isEmpty() && !state.sshOnline);
-    lanWarning_->setText(
-        QStringLiteral("网络提示：如果 PC 和树莓派没有处在同一局域网，SSH 可能无法连接。手机热点下通常前三段 IP 相同。"));
+    lanWarning_->hide();
     hardwarePage_->setState(state);
     logsPage_->setLogText(state.logText);
     cameraPage_->setImagePath(state.localFramePath);
@@ -362,12 +618,12 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
 
 void MainWindow::updateResponsiveMode() {
     const bool compact = width() < 1040;
-    sidebar_->setFixedWidth(compact ? 98 : 232);
+    sidebar_->setFixedWidth(compact ? 116 : 280);
     if (statusSurface_ != nullptr) {
-        statusSurface_->setFixedWidth(width() < 1240 ? 286 : 328);
+        statusSurface_->setFixedWidth(width() < 1240 ? 292 : 318);
     }
     for (auto it = navButtons_.begin(); it != navButtons_.end(); ++it) {
-        it.value()->setMinimumHeight(compact ? 48 : 54);
+        it.value()->setMinimumHeight(compact ? 72 : 86);
     }
 }
 
@@ -384,9 +640,11 @@ void MainWindow::setWatchLive(bool enabled) {
     }
 }
 
-QPushButton* MainWindow::makeNavButton(const QString& key, const QString& text) {
+QPushButton* MainWindow::makeNavButton(const QString& key, const QString& text, const QString& subtitle, const QString& glyph) {
     auto* button = new LiquidNavButton(text, sidebar_);
     button->setProperty("active", false);
+    button->setProperty("subtitle", subtitle);
+    button->setProperty("glyph", glyph);
     QObject::connect(button, &QPushButton::clicked, this, [this, key]() {
         switchPage(key);
     });
@@ -398,13 +656,54 @@ void MainWindow::setMetricChipText(QLabel* chip, const QString& label, const QSt
     if (chip == nullptr) {
         return;
     }
-    chip->setText(QString(
-        "<span style='color:#b8cbe3;font-size:11px;font-weight:700;'>%1</span><br>"
-        "<span style='color:#f7fbff;font-size:15px;font-weight:800;'>%2</span>")
-            .arg(label, value));
+    const QString newText = inspectorCardHtml(label, value);
+    const QString previousText = chip->text();
+    const QString previousTone = chip->property("tone").toString();
+    chip->setTextFormat(Qt::RichText);
+    chip->setText(newText);
     chip->setProperty("tone", tone);
     chip->style()->unpolish(chip);
     chip->style()->polish(chip);
+    if (previousText != newText || previousTone != tone) {
+        animateWidgetRefresh(chip, 220);
+    }
+}
+
+void MainWindow::setInspectorSectionExpanded(QToolButton* toggle, QWidget* container, bool expanded) {
+    if (toggle == nullptr || container == nullptr) {
+        return;
+    }
+    toggle->setArrowType(expanded ? Qt::DownArrow : Qt::RightArrow);
+    container->setVisible(expanded);
+    container->updateGeometry();
+    if (container->parentWidget() != nullptr && container->parentWidget()->layout() != nullptr) {
+        container->parentWidget()->layout()->invalidate();
+        container->parentWidget()->layout()->activate();
+    }
+}
+
+void MainWindow::updateInspectorFocus(const ConnectionState& state) {
+    const bool focusRecovery = !state.sshOnline
+        || state.assistantStatus == AssistantStatus::Error
+        || state.assistantStatus == AssistantStatus::Offline;
+
+    if (sectionPrimaryToggle_ != nullptr) {
+        sectionPrimaryToggle_->setProperty("focused", !focusRecovery);
+        sectionPrimaryToggle_->style()->unpolish(sectionPrimaryToggle_);
+        sectionPrimaryToggle_->style()->polish(sectionPrimaryToggle_);
+    }
+    if (sectionRecoveryToggle_ != nullptr) {
+        sectionRecoveryToggle_->setProperty("focused", focusRecovery);
+        sectionRecoveryToggle_->style()->unpolish(sectionRecoveryToggle_);
+        sectionRecoveryToggle_->style()->polish(sectionRecoveryToggle_);
+    }
+
+    if (focusRecovery && sectionRecoveryToggle_ != nullptr && !sectionRecoveryToggle_->isChecked()) {
+        sectionRecoveryToggle_->setChecked(true);
+    }
+    if (!focusRecovery && sectionPrimaryToggle_ != nullptr && !sectionPrimaryToggle_->isChecked()) {
+        sectionPrimaryToggle_->setChecked(true);
+    }
 }
 
 QString MainWindow::phaseTextFor(const ConnectionState& state) const {
@@ -441,4 +740,58 @@ QString MainWindow::triggerTextFor(const ConnectionState& state) const {
 
 QString MainWindow::displayModeTextFor() const {
     return QStringLiteral("Windows 控制中心 + 树莓派实时桥接");
+}
+
+QString MainWindow::nextActionTextFor(const ConnectionState& state) const {
+    if (!state.sshOnline) {
+        return QStringLiteral("检查树莓派 IP 与 SSH 服务，然后点击重新连接。");
+    }
+    if (state.assistantStatus == AssistantStatus::Listening) {
+        return QStringLiteral("继续说话，等待 5 秒录音完成后自动转入识别。");
+    }
+    if (state.assistantStatus == AssistantStatus::Thinking) {
+        return QStringLiteral("保持画面稳定，等待语音识别与视觉分析结束。");
+    }
+    if (state.assistantStatus == AssistantStatus::Error) {
+        return QStringLiteral("切到连接诊断或原始日志页，查看最近一次失败原因。");
+    }
+    return QStringLiteral("现在可以按三键键盘 K-B 发起下一次分析。");
+}
+
+QString MainWindow::healthHeadlineTextFor(const ConnectionState& state) const {
+    if (!state.sshOnline) {
+        return QStringLiteral("主链路尚未打通，系统仍处于桥接前状态。");
+    }
+    if (state.assistantStatus == AssistantStatus::Listening) {
+        return QStringLiteral("硬件已接管输入，正在把现场语音转成可分析指令。");
+    }
+    if (state.assistantStatus == AssistantStatus::Thinking) {
+        return QStringLiteral("多模态链路工作中：语音识别、图像理解与回答生成正在推进。");
+    }
+    if (state.assistantStatus == AssistantStatus::Ready) {
+        return QStringLiteral("系统处于可演示状态，输入、拍照、分析与回传链路均已待命。");
+    }
+    if (state.assistantStatus == AssistantStatus::Error) {
+        return QStringLiteral("系统捕获到中断或异常，请先恢复链路再继续演示。");
+    }
+    return QStringLiteral("系统正在刷新最新硬件与服务状态。");
+}
+
+void MainWindow::startBeaconPulse() {
+    if (beaconTimer_ != nullptr) {
+        return;
+    }
+    beaconTimer_ = new QTimer(this);
+    beaconTimer_->setInterval(720);
+    QObject::connect(beaconTimer_, &QTimer::timeout, this, [this]() {
+        if (statusBeacon_ == nullptr) {
+            return;
+        }
+        const bool dim = statusBeacon_->property("pulse").toString() == QStringLiteral("dim");
+        statusBeacon_->setProperty("pulse", dim ? QStringLiteral("bright") : QStringLiteral("dim"));
+        statusBeacon_->style()->unpolish(statusBeacon_);
+        statusBeacon_->style()->polish(statusBeacon_);
+    });
+    statusBeacon_->setProperty("pulse", QStringLiteral("bright"));
+    beaconTimer_->start();
 }

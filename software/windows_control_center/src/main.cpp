@@ -58,7 +58,7 @@ int main(int argc, char* argv[]) {
     }
 
     MainWindow window;
-    window.show();
+    window.showMaximized();
     splash.finish(&window);
     return QApplication::exec();
 }

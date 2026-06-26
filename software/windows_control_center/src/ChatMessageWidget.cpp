@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QSizePolicy>
 #include <QVBoxLayout>
 
 namespace {
@@ -47,21 +48,29 @@ QPixmap loadPixmapFromFile(const QString& imagePath, QString* error) {
 
 ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     : QWidget(parent) {
+    const QString roleKey = role == Role::User ? QStringLiteral("user")
+        : role == Role::Assistant ? QStringLiteral("assistant")
+                                  : QStringLiteral("system");
     setObjectName(role == Role::User ? "userMessage" : role == Role::Assistant ? "assistantMessage" : "systemMessage");
+    setProperty("role", roleKey);
     auto* root = new QHBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
-    root->setSpacing(12);
+    root->setSpacing(10);
 
     avatar_ = new QLabel(role == Role::User ? "我" : role == Role::Assistant ? "AI" : "系统", this);
     avatar_->setObjectName("avatar");
-    avatar_->setFixedSize(42, 42);
+    avatar_->setProperty("role", roleKey);
+    avatar_->setFixedSize(36, 36);
     avatar_->setAlignment(Qt::AlignCenter);
 
-    auto* bubble = new DarkMessageBubble(this);
-    bubble->setObjectName("messageBubble");
-    auto* bubbleLayout = new QVBoxLayout(bubble);
-    bubbleLayout->setContentsMargins(16, 14, 16, 14);
-    bubbleLayout->setSpacing(8);
+    bubble_ = new DarkMessageBubble(this);
+    bubble_->setObjectName("messageBubble");
+    bubble_->setProperty("role", roleKey);
+    bubble_->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
+    bubble_->setMaximumWidth(820);
+    auto* bubbleLayout = new QVBoxLayout(bubble_);
+    bubbleLayout->setContentsMargins(18, 16, 18, 16);
+    bubbleLayout->setSpacing(10);
 
     title_ = new QLabel(this);
     title_->setObjectName("messageTitle");
@@ -72,7 +81,7 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
 
     image_ = new QLabel(this);
     image_->setObjectName("messageImage");
-    image_->setMinimumHeight(120);
+    image_->setMinimumHeight(128);
     image_->setAlignment(Qt::AlignCenter);
     image_->setWordWrap(true);
     image_->hide();
@@ -82,7 +91,8 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     bubbleLayout->addWidget(image_);
 
     root->addWidget(avatar_, 0, Qt::AlignTop);
-    root->addWidget(bubble, 1);
+    root->addWidget(bubble_, 0, Qt::AlignTop);
+    root->addStretch(1);
 }
 
 void ChatMessageWidget::setMessage(const QString& title, const QString& body, const QString& imagePath) {

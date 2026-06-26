@@ -28,7 +28,7 @@ LiquidNavButton::LiquidNavButton(const QString& text, QWidget* parent)
     : QPushButton(text, parent) {
     setObjectName("navButton");
     setCursor(Qt::PointingHandCursor);
-    setMinimumHeight(54);
+    setMinimumHeight(86);
     setAttribute(Qt::WA_Hover, true);
     setAttribute(Qt::WA_TranslucentBackground, true);
     setFlat(true);
@@ -80,10 +80,12 @@ void LiquidNavButton::paintEvent(QPaintEvent* event) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing, true);
 
+    const QString subtitle = property("subtitle").toString();
+    const QString glyph = property("glyph").toString();
     const qreal active = qMax(selectionProgress_, property("active").toBool() ? 1.0 : 0.0);
     const qreal energy = qBound<qreal>(0.0, hoverProgress_ * 0.62 + active, 1.0);
     const QRectF bounds = QRectF(rect()).adjusted(1.5, 1.5, -1.5, -1.5);
-    const qreal radius = 15.0;
+    const qreal radius = 17.0;
     QPainterPath shape;
     shape.addRoundedRect(bounds, radius, radius);
 
@@ -120,13 +122,47 @@ void LiquidNavButton::paintEvent(QPaintEvent* event) {
     painter.setPen(QPen(QColor(255, 255, 255, 14 + static_cast<int>(energy * 34)), 0.8));
     painter.drawPath(inner);
 
-    QFont labelFont = font();
-    labelFont.setWeight(active > 0.45 ? QFont::DemiBold : QFont::Medium);
-    painter.setFont(labelFont);
+    qreal textLeft = bounds.left() + 18.0 + active * 2.5;
+    if (!glyph.isEmpty()) {
+        const QRectF glyphRect(bounds.left() + 14.0, bounds.center().y() - 14.0, 28.0, 28.0);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(220, 242, 255, 18 + static_cast<int>(energy * 42)));
+        painter.drawEllipse(glyphRect);
+        painter.setPen(QColor(239, 248, 255, 228));
+        QFont glyphFont = font();
+        glyphFont.setPointSizeF(glyphFont.pointSizeF() + 1.5);
+        glyphFont.setWeight(QFont::DemiBold);
+        painter.setFont(glyphFont);
+        painter.drawText(glyphRect, Qt::AlignCenter, glyph);
+        textLeft = glyphRect.right() + 14.0;
+    }
+
+    const QRectF textBounds = bounds.adjusted(textLeft - bounds.left(), 11.0, -18.0, -12.0);
     painter.setPen(QColor(226 + static_cast<int>(energy * 29),
                           238 + static_cast<int>(energy * 17), 255));
-    painter.drawText(bounds.adjusted(18.0 + active * 3.0, 0.0, -12.0, 0.0),
-                     Qt::AlignVCenter | Qt::AlignLeft, text());
+
+    QFont titleFont = font();
+    titleFont.setWeight(active > 0.45 ? QFont::DemiBold : QFont::Medium);
+    titleFont.setPointSizeF(titleFont.pointSizeF() + 0.5);
+    painter.setFont(titleFont);
+
+    if (subtitle.isEmpty()) {
+        painter.drawText(textBounds, Qt::AlignVCenter | Qt::AlignLeft, text());
+    } else {
+        const QRectF titleRect(textBounds.left(), textBounds.top(), textBounds.width(), textBounds.height() * 0.42);
+        painter.drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter, text());
+
+        QFont subtitleFont = font();
+        subtitleFont.setPointSizeF(qMax(9.0, subtitleFont.pointSizeF() - 1.5));
+        subtitleFont.setWeight(QFont::Medium);
+        painter.setFont(subtitleFont);
+        painter.setPen(QColor(182 + static_cast<int>(energy * 20),
+                              206 + static_cast<int>(energy * 14),
+                              232 + static_cast<int>(energy * 12), 228));
+        const QRectF subtitleRect(textBounds.left(), textBounds.top() + textBounds.height() * 0.40,
+                                  textBounds.width(), textBounds.height() * 0.54);
+        painter.drawText(subtitleRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, subtitle);
+    }
 }
 
 TransparentStackedWidget::TransparentStackedWidget(QWidget* parent)

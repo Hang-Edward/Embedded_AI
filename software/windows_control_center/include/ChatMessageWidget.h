@@ -21,4 +21,5 @@ private:
     QLabel* title_ = nullptr;
     QLabel* body_ = nullptr;
     QLabel* image_ = nullptr;
+    QWidget* bubble_ = nullptr;
 };
