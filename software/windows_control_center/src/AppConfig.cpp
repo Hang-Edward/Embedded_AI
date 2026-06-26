@@ -40,6 +40,14 @@ void AppConfig::load() {
     logPath = settings.value("paths/log", logPath).toString();
     framePath = settings.value("paths/frame", framePath).toString();
     authMode = settings.value("ssh/authMode", authMode).toString();
+    deepSeekBaseUrl = settings.value("deepseek/baseUrl", deepSeekBaseUrl).toString();
+    deepSeekModel = settings.value("deepseek/model", deepSeekModel).toString();
+    deepSeekApiKeyFile = settings.value("deepseek/apiKeyFile", deepSeekApiKeyFile).toString();
+    deepSeekApiKeyEnv = settings.value("deepseek/apiKeyEnv", deepSeekApiKeyEnv).toString();
+    qwenVisionBaseUrl = settings.value("qwen/baseUrl", qwenVisionBaseUrl).toString();
+    qwenVisionModel = settings.value("qwen/model", qwenVisionModel).toString();
+    qwenVisionApiKeyFile = settings.value("qwen/apiKeyFile", qwenVisionApiKeyFile).toString();
+    qwenVisionApiKeyEnv = settings.value("qwen/apiKeyEnv", qwenVisionApiKeyEnv).toString();
 }
 
 void AppConfig::save() const {
@@ -52,6 +60,14 @@ void AppConfig::save() const {
     settings.setValue("paths/log", logPath);
     settings.setValue("paths/frame", framePath);
     settings.setValue("ssh/authMode", authMode);
+    settings.setValue("deepseek/baseUrl", deepSeekBaseUrl);
+    settings.setValue("deepseek/model", deepSeekModel);
+    settings.setValue("deepseek/apiKeyFile", deepSeekApiKeyFile);
+    settings.setValue("deepseek/apiKeyEnv", deepSeekApiKeyEnv);
+    settings.setValue("qwen/baseUrl", qwenVisionBaseUrl);
+    settings.setValue("qwen/model", qwenVisionModel);
+    settings.setValue("qwen/apiKeyFile", qwenVisionApiKeyFile);
+    settings.setValue("qwen/apiKeyEnv", qwenVisionApiKeyEnv);
 }
 
 QString AppConfig::settingsFilePath() const {

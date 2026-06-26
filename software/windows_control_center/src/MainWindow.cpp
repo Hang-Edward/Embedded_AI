@@ -307,7 +307,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     surfaceLayout->setContentsMargins(0, 0, 0, 0);
     stack_ = new TransparentStackedWidget(pageSurface_);
     stack_->setObjectName(QStringLiteral("pageStack"));
-    chatPage_ = new ChatPage(stack_);
+    chatPage_ = new ChatPage(config_, stack_);
     historyPage_ = new HistoryPage(stack_);
     hardwarePage_ = new HardwarePage(stack_);
     cameraPage_ = new CameraPage(stack_);

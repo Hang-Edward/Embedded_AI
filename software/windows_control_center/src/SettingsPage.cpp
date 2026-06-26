@@ -42,6 +42,12 @@ SettingsPage::SettingsPage(AppConfig& config, QWidget* parent)
     fallbackIpEdit_ = new QLineEdit(config_.fallbackIp, this);
     manualCommandEdit_ = new QLineEdit(config_.manualSshCommand, this);
     projectPathEdit_ = new QLineEdit(config_.projectPath, this);
+    deepSeekBaseUrlEdit_ = new QLineEdit(config_.deepSeekBaseUrl, this);
+    deepSeekModelEdit_ = new QLineEdit(config_.deepSeekModel, this);
+    deepSeekApiKeyFileEdit_ = new QLineEdit(config_.deepSeekApiKeyFile, this);
+    qwenBaseUrlEdit_ = new QLineEdit(config_.qwenVisionBaseUrl, this);
+    qwenModelEdit_ = new QLineEdit(config_.qwenVisionModel, this);
+    qwenApiKeyFileEdit_ = new QLineEdit(config_.qwenVisionApiKeyFile, this);
 
     authModeCombo_ = new QComboBox(this);
     authModeCombo_->addItem("密码登录", "password");
@@ -54,6 +60,12 @@ SettingsPage::SettingsPage(AppConfig& config, QWidget* parent)
     form->addRow("手动 SSH 命令", manualCommandEdit_);
     form->addRow("项目路径", projectPathEdit_);
     form->addRow("认证方式", authModeCombo_);
+    form->addRow("DeepSeek Base URL", deepSeekBaseUrlEdit_);
+    form->addRow("DeepSeek Model", deepSeekModelEdit_);
+    form->addRow("DeepSeek Key 文件", deepSeekApiKeyFileEdit_);
+    form->addRow("Qwen Base URL", qwenBaseUrlEdit_);
+    form->addRow("Qwen Vision Model", qwenModelEdit_);
+    form->addRow("Qwen Key 文件", qwenApiKeyFileEdit_);
 
     auto* save = new QPushButton("保存设置", this);
     save->setObjectName("primaryButton");
@@ -127,5 +139,11 @@ void SettingsPage::saveToConfig() {
     config_.manualSshCommand = manualCommandEdit_->text().trimmed();
     config_.projectPath = projectPathEdit_->text().trimmed();
     config_.authMode = authModeCombo_->currentData().toString();
+    config_.deepSeekBaseUrl = deepSeekBaseUrlEdit_->text().trimmed();
+    config_.deepSeekModel = deepSeekModelEdit_->text().trimmed();
+    config_.deepSeekApiKeyFile = deepSeekApiKeyFileEdit_->text().trimmed();
+    config_.qwenVisionBaseUrl = qwenBaseUrlEdit_->text().trimmed();
+    config_.qwenVisionModel = qwenModelEdit_->text().trimmed();
+    config_.qwenVisionApiKeyFile = qwenApiKeyFileEdit_->text().trimmed();
     config_.save();
 }

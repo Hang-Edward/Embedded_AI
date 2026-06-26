@@ -1,16 +1,41 @@
 #pragma once
 
+#include "AppConfig.h"
 #include "BasePage.h"
 #include "ConnectionState.h"
 
+#include <QFutureWatcher>
+#include <QList>
+
 class QVBoxLayout;
+class QTextEdit;
 class QLabel;
 class QWidget;
 class QScrollArea;
+class QPushButton;
+class QCheckBox;
+
+struct AgentUiMessage {
+    QString role;
+    QString title;
+    QString rawText;
+    QString htmlText;
+    QString imagePath;
+};
+
+struct AgentTurnResult {
+    bool success = false;
+    QString userText;
+    QString userImagePath;
+    QString visionSummary;
+    QString assistantMarkdown;
+    QString assistantHtml;
+    QString errorText;
+};
 
 class ChatPage : public BasePage {
 public:
-    explicit ChatPage(QWidget* parent = nullptr);
+    explicit ChatPage(AppConfig& config, QWidget* parent = nullptr);
     void appendDemoConversation();
     void setLatestSession(const ConnectionState& state);
 
@@ -18,7 +43,19 @@ private:
     void clearMessages();
     void updateStagePanel(const ConnectionState& state);
     void updateOverviewPanels(const ConnectionState& state);
+    void rebuildConversation();
+    void appendUiMessage(const AgentUiMessage& message);
+    void sendPrompt();
+    AgentTurnResult runAgentTurn(const QString& userPrompt,
+                                 bool includeScene,
+                                 const ConnectionState& stateSnapshot,
+                                 const QList<AgentUiMessage>& historySnapshot) const;
+    void setChatBusy(bool busy, const QString& hint);
 
+    AppConfig& config_;
+    ConnectionState latestState_;
+    QList<AgentUiMessage> uiMessages_;
+    QFutureWatcher<AgentTurnResult>* turnWatcher_ = nullptr;
     QVBoxLayout* messages_ = nullptr;
     QLabel* sectionCaption_ = nullptr;
     QLabel* stageTitle_ = nullptr;
@@ -29,5 +66,9 @@ private:
     QLabel* visualFrame_ = nullptr;
     QLabel* answerSummary_ = nullptr;
     QScrollArea* chatScroll_ = nullptr;
+    QTextEdit* composerEdit_ = nullptr;
+    QPushButton* sendButton_ = nullptr;
+    QPushButton* clearButton_ = nullptr;
+    QCheckBox* includeSceneCheck_ = nullptr;
     QString lastSessionKey_;
 };

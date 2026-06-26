@@ -91,10 +91,18 @@ foreach ($dllName in $dllNames) {
 # 某些 MSYS2 windeployqt 版本会在扫描阶段保留部署目录中的旧主程序。
 # 最后再次覆盖 exe，并以哈希校验，确保启动的一定是本次构建版本。
 Copy-Item $exe $distExe -Force
+Start-Sleep -Milliseconds 250
 $buildHash = (Get-FileHash -Algorithm SHA256 $exe).Hash
 $distHash = (Get-FileHash -Algorithm SHA256 $distExe).Hash
 if ($buildHash -ne $distHash) {
-    throw "Deployment verification failed: built and deployed executable hashes differ."
+    # 中文注释：个别环境里 windeployqt 对主程序句柄释放稍慢，这里重试一次，避免误报失败。
+    Start-Sleep -Milliseconds 500
+    Copy-Item $exe $distExe -Force
+    Start-Sleep -Milliseconds 250
+    $distHash = (Get-FileHash -Algorithm SHA256 $distExe).Hash
+}
+if ($buildHash -ne $distHash) {
+    throw "Deployment verification failed: built and deployed executable hashes differ after retry."
 }
 
 Write-Host "Copied MSYS2 runtime DLLs: $copied newly copied, $($dllNames.Count) required"

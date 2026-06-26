@@ -31,6 +31,12 @@ private:
     QLineEdit* fallbackIpEdit_ = nullptr;
     QLineEdit* manualCommandEdit_ = nullptr;
     QLineEdit* projectPathEdit_ = nullptr;
+    QLineEdit* deepSeekBaseUrlEdit_ = nullptr;
+    QLineEdit* deepSeekModelEdit_ = nullptr;
+    QLineEdit* deepSeekApiKeyFileEdit_ = nullptr;
+    QLineEdit* qwenBaseUrlEdit_ = nullptr;
+    QLineEdit* qwenModelEdit_ = nullptr;
+    QLineEdit* qwenApiKeyFileEdit_ = nullptr;
     QComboBox* authModeCombo_ = nullptr;
     QPushButton* watchButton_ = nullptr;
     QScrollArea* scroll_ = nullptr;

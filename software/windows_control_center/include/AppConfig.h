@@ -13,6 +13,14 @@ public:
     QString logPath = "~/Embedded_AI/logs/embedded-ai.log";
     QString framePath = "~/Embedded_AI/captures/latest-frame.jpg";
     QString authMode = "password";
+    QString deepSeekBaseUrl = "https://api.deepseek.com";
+    QString deepSeekModel = "deepseek-v4-flash";
+    QString deepSeekApiKeyFile = "config/deepseek.key";
+    QString deepSeekApiKeyEnv = "EMBEDDED_AI_DEEPSEEK_KEY";
+    QString qwenVisionBaseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    QString qwenVisionModel = "qwen3-vl-8b-instruct";
+    QString qwenVisionApiKeyFile = "config/qwen-vision.key";
+    QString qwenVisionApiKeyEnv = "EMBEDDED_AI_QWEN_KEY";
 
     QStringList candidateHosts() const;
     QString normalizedManualHost() const;

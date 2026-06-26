@@ -355,6 +355,34 @@ QWidget#chatConversationCard {
     border: 1px solid rgba(185, 225, 255, 0.14);
     border-radius: 22px;
 }
+QWidget#chatComposerCard {
+    background: rgba(6, 16, 35, 0.72);
+    border: 1px solid rgba(168, 214, 255, 0.14);
+    border-radius: 18px;
+}
+QTextEdit#chatComposerEdit {
+    background: rgba(5, 13, 29, 0.84);
+    color: #eef6ff;
+    border: 1px solid rgba(170, 220, 255, 0.16);
+    border-radius: 14px;
+    padding: 10px 12px;
+    selection-background-color: rgba(83, 160, 255, 165);
+}
+QCheckBox#chatSceneCheck {
+    color: #dcecff;
+    spacing: 8px;
+}
+QCheckBox#chatSceneCheck::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1px solid rgba(170, 220, 255, 0.26);
+    background: rgba(9, 20, 42, 0.76);
+}
+QCheckBox#chatSceneCheck::indicator:checked {
+    background: rgba(81, 154, 255, 0.88);
+    border-color: rgba(214, 240, 255, 0.42);
+}
 QScrollArea#chatInsightScroll,
 QScrollArea#chatInsightScroll QWidget,
 QScrollArea#chatInsightScroll QAbstractScrollArea,
@@ -439,6 +467,17 @@ QWidget#messageBubble[role="system"] {
 QLabel#messageBody {
     color: #dcecff;
     line-height: 158%;
+}
+QTextBrowser#messageBody {
+    background: transparent;
+    border: none;
+    color: #dcecff;
+}
+QTextBrowser#messageBody QScrollBar:vertical,
+QTextBrowser#messageBody QScrollBar:horizontal {
+    width: 0px;
+    height: 0px;
+    background: transparent;
 }
 QLabel#avatar {
     background: rgba(75, 150, 255, 118);

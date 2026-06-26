@@ -23,6 +23,8 @@ add_executable(embedded_ai_control_center WIN32
     src/BasePage.cpp
     src/ChatMessageWidget.cpp
     src/ChatPage.cpp
+    src/DeepSeekChatClient.cpp
+    src/MarkdownLatexRenderer.cpp
     src/ConnectionManager.cpp
     src/ConnectionState.cpp
     src/GlassSurface.cpp
@@ -31,6 +33,7 @@ add_executable(embedded_ai_control_center WIN32
     src/LogsPage.cpp
     src/CameraPage.cpp
     src/MainWindow.cpp
+    src/QwenVisionQtClient.cpp
     src/SettingsPage.cpp
     src/StatusCard.cpp
     src/Theme.cpp
