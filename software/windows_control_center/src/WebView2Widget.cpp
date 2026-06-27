@@ -52,6 +52,47 @@ QString webViewCacheRoot() {
     return root.filePath(QStringLiteral("cache"));
 }
 
+QStringList katexFontFileNames() {
+    return {
+        QStringLiteral("KaTeX_AMS-Regular.woff2"),
+        QStringLiteral("KaTeX_Caligraphic-Bold.woff2"),
+        QStringLiteral("KaTeX_Caligraphic-Regular.woff2"),
+        QStringLiteral("KaTeX_Fraktur-Bold.woff2"),
+        QStringLiteral("KaTeX_Fraktur-Regular.woff2"),
+        QStringLiteral("KaTeX_Main-Bold.woff2"),
+        QStringLiteral("KaTeX_Main-BoldItalic.woff2"),
+        QStringLiteral("KaTeX_Main-Italic.woff2"),
+        QStringLiteral("KaTeX_Main-Regular.woff2"),
+        QStringLiteral("KaTeX_Math-BoldItalic.woff2"),
+        QStringLiteral("KaTeX_Math-Italic.woff2"),
+        QStringLiteral("KaTeX_SansSerif-Bold.woff2"),
+        QStringLiteral("KaTeX_SansSerif-Italic.woff2"),
+        QStringLiteral("KaTeX_SansSerif-Regular.woff2"),
+        QStringLiteral("KaTeX_Script-Regular.woff2"),
+        QStringLiteral("KaTeX_Size1-Regular.woff2"),
+        QStringLiteral("KaTeX_Size2-Regular.woff2"),
+        QStringLiteral("KaTeX_Size3-Regular.woff2"),
+        QStringLiteral("KaTeX_Size4-Regular.woff2"),
+        QStringLiteral("KaTeX_Typewriter-Regular.woff2")
+    };
+}
+
+void ensureKatexFontsExported() {
+    const QDir cacheRoot(webViewCacheRoot());
+    cacheRoot.mkpath(QStringLiteral("fonts"));
+    for (const QString& fileName : katexFontFileNames()) {
+        QFile source(QStringLiteral(":/assets/web/fonts/%1").arg(fileName));
+        if (!source.open(QIODevice::ReadOnly)) {
+            continue;
+        }
+        QFile target(cacheRoot.filePath(QStringLiteral("fonts/%1").arg(fileName)));
+        if (!target.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            continue;
+        }
+        target.write(source.readAll());
+    }
+}
+
 } // namespace
 
 #ifdef Q_OS_WIN
@@ -161,7 +202,7 @@ void WebView2Widget::setHtmlContent(const QString& html) {
     pendingHtml_ = html;
     if (initializationFinished_) {
         navigatePendingContent();
-    } else {
+    } else if (isVisible()) {
         initializeIfNeeded();
     }
 }
@@ -183,6 +224,15 @@ void WebView2Widget::initializeIfNeeded() {
 #else
     if (initializationStarted_ || initializationFinished_) {
         return;
+    }
+
+    // 中文注释：只有在控件真正显示、且已有原生句柄后再初始化 WebView2，
+    // 避免在页面构造阶段过早拉起控制器，导致后续 HTML 缓存与导航链路没有真正建立。
+    if (!isVisible()) {
+        return;
+    }
+    if (testAttribute(Qt::WA_WState_Created) == false) {
+        winId();
     }
 
     initializationStarted_ = true;
@@ -220,6 +270,7 @@ void WebView2Widget::navigatePendingContent() {
         return;
     }
 
+    ensureKatexFontsExported();
     const QString targetPath = htmlCachePath();
     QFile file(targetPath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {

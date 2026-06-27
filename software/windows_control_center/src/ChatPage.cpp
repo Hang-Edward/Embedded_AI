@@ -6,6 +6,7 @@
 
 #include <QCheckBox>
 #include <QFrame>
+#include <QFile>
 #include <QHBoxLayout>
 #include <QImageReader>
 #include <QJsonArray>
@@ -166,6 +167,26 @@ QString jsonBase64(const QList<AgentUiMessage>& messages) {
         });
     }
     return QString::fromLatin1(QJsonDocument(array).toJson(QJsonDocument::Compact).toBase64());
+}
+
+QString loadResourceText(const QString& resourcePath) {
+    QFile file(resourcePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return {};
+    }
+    return QString::fromUtf8(file.readAll());
+}
+
+QString htmlEscapedForStyle(const QString& text) {
+    QString escaped = text;
+    escaped.replace(QStringLiteral("</style>"), QStringLiteral("<\\/style>"), Qt::CaseInsensitive);
+    return escaped;
+}
+
+QString htmlEscapedForScript(const QString& text) {
+    QString escaped = text;
+    escaped.replace(QStringLiteral("</script>"), QStringLiteral("<\\/script>"), Qt::CaseInsensitive);
+    return escaped;
 }
 
 } // namespace
@@ -455,6 +476,10 @@ void ChatPage::rebuildConversation() {
 
 QString ChatPage::buildConversationHtml() const {
     const QString payload = jsonBase64(uiMessages_);
+    const QString markedJs = htmlEscapedForScript(loadResourceText(QStringLiteral(":/assets/web/marked.min.js")));
+    const QString katexJs = htmlEscapedForScript(loadResourceText(QStringLiteral(":/assets/web/katex.min.js")));
+    const QString katexAutoRenderJs = htmlEscapedForScript(loadResourceText(QStringLiteral(":/assets/web/auto-render.min.js")));
+    const QString katexCss = htmlEscapedForStyle(loadResourceText(QStringLiteral(":/assets/web/katex.min.css")));
     return QStringLiteral(R"HTML(
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -462,6 +487,7 @@ QString ChatPage::buildConversationHtml() const {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+__KATEX_CSS__
     :root {
       color-scheme: dark;
       --bg: rgba(0,0,0,0);
@@ -541,6 +567,7 @@ QString ChatPage::buildConversationHtml() const {
       font-size: 14px;
       line-height: 1.72;
       word-break: break-word;
+      overflow-wrap: anywhere;
     }
     .body h1, .body h2, .body h3, .body h4 {
       margin: 0.55em 0 0.38em 0;
@@ -570,6 +597,18 @@ QString ChatPage::buildConversationHtml() const {
       padding-left: 12px;
       color: #c8ddf5;
     }
+    .body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.7em 0;
+      font-size: 13px;
+    }
+    .body th, .body td {
+      border: 1px solid rgba(160,210,255,0.18);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
     .message-image {
       margin-top: 12px;
       max-width: min(560px, 100%);
@@ -577,14 +616,25 @@ QString ChatPage::buildConversationHtml() const {
       border: 1px solid rgba(155, 210, 255, 0.22);
       display: block;
     }
-    .MathJax, mjx-container {
-      font-size: 0.94em !important;
+    .body .katex {
+      font-size: 1.02em;
+      color: var(--text);
     }
-    mjx-container[display="true"] {
-      margin: 0.55em auto !important;
+    .body .katex-display {
+      margin: 0.55em 0;
       max-width: 100%;
       overflow-x: auto;
       overflow-y: hidden;
+      padding: 0.08em 0 0.18em 0;
+    }
+    .body .katex-display > .katex {
+      display: inline-block;
+      text-align: left;
+    }
+    .body hr {
+      border: none;
+      border-top: 1px solid rgba(170,220,255,0.20);
+      margin: 1em 0;
     }
     ::-webkit-scrollbar { width: 10px; height: 10px; }
     ::-webkit-scrollbar-thumb {
@@ -593,18 +643,9 @@ QString ChatPage::buildConversationHtml() const {
     }
     ::-webkit-scrollbar-track { background: transparent; }
   </style>
-  <script>
-    window.MathJax = {
-      tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
-      },
-      chtml: { scale: 0.92 },
-      svg: { fontCache: 'global' }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script>__MARKED_JS__</script>
+  <script>__KATEX_JS__</script>
+  <script>__KATEX_AUTORENDER_JS__</script>
 </head>
 <body>
   <div id="conversation" class="conversation"></div>
@@ -630,9 +671,58 @@ QString ChatPage::buildConversationHtml() const {
       return '系统';
     }
 
+    function protectMath(markdown) {
+      const placeholders = [];
+      let output = markdown || '';
+
+      const store = (raw) => {
+        const token = `EMBEDDED_AI_MATH_${placeholders.length}_TOKEN`;
+        placeholders.push({ token, raw });
+        return token;
+      };
+
+      output = output.replace(/\$\$([\s\S]+?)\$\$/g, (_, body) => store(`$$${body}$$`));
+      output = output.replace(/\\\[([\s\S]+?)\\\]/g, (_, body) => store(`\\[${body}\\]`));
+      output = output.replace(/\\\(([\s\S]+?)\\\)/g, (_, body) => store(`\\(${body}\\)`));
+      output = output.replace(/(^|[^\\])\$([^\n$]+?)\$/g, (_, prefix, body) => `${prefix}${store(`$${body}$`)}`);
+
+      return { text: output, placeholders };
+    }
+
+    function normalizeAssistantLatex(markdown) {
+      if (!markdown) {
+        return '';
+      }
+
+      // 中文注释：DeepSeek 有时会把 LaTeX 里的反斜杠再次转义成双反斜杠，
+      // 比如 \\(、\\frac、\\sum。这里先把公式常见写法恢复成单反斜杠，
+      // 再交给 Markdown 与 KaTeX 处理。
+      return markdown
+        .replace(/\\\\(?=[()[\]{}])/g, '\\')
+        .replace(/\\\\(?=[A-Za-z])/g, '\\');
+    }
+
+    function restoreMath(html, placeholders) {
+      let output = html;
+      placeholders.forEach((item) => {
+        output = output.split(item.token).join(item.raw);
+      });
+      return output;
+    }
+
+    marked.setOptions({
+      gfm: true,
+      breaks: true,
+      headerIds: false,
+      mangle: false
+    });
+
     function renderBody(role, body) {
       if (role === 'assistant') {
-        return marked.parse(body || '', { breaks: true, gfm: true });
+        const normalizedBody = normalizeAssistantLatex(body || '');
+        const protectedMath = protectMath(normalizedBody);
+        const markdownHtml = marked.parse(protectedMath.text || '');
+        return restoreMath(markdownHtml, protectedMath.placeholders);
       }
       return '<p>' + escapeHtml(body || '').replace(/\n/g, '<br/>') + '</p>';
     }
@@ -655,12 +745,19 @@ QString ChatPage::buildConversationHtml() const {
           </section>`;
       }).join('');
 
-      const finalizeScroll = () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' });
-      if (window.MathJax && window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise([root]).then(finalizeScroll).catch(finalizeScroll);
-      } else {
-        finalizeScroll();
+      if (window.renderMathInElement) {
+        window.renderMathInElement(root, {
+          throwOnError: false,
+          strict: 'ignore',
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false },
+            { left: '$', right: '$', display: false }
+          ]
+        });
       }
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' });
     }
 
     if (document.readyState === 'loading') {
@@ -671,7 +768,12 @@ QString ChatPage::buildConversationHtml() const {
   </script>
 </body>
 </html>
-)HTML").replace(QStringLiteral("__PAYLOAD_BASE64__"), payload);
+)HTML")
+        .replace(QStringLiteral("__PAYLOAD_BASE64__"), payload)
+        .replace(QStringLiteral("__MARKED_JS__"), markedJs)
+        .replace(QStringLiteral("__KATEX_JS__"), katexJs)
+        .replace(QStringLiteral("__KATEX_AUTORENDER_JS__"), katexAutoRenderJs)
+        .replace(QStringLiteral("__KATEX_CSS__"), katexCss);
 }
 
 void ChatPage::appendUiMessage(const AgentUiMessage& message) {
