@@ -1,71 +1,30 @@
 #include "ChatPage.h"
 
-#include "ChatMessageWidget.h"
 #include "DeepSeekChatClient.h"
-#include "MarkdownLatexRenderer.h"
 #include "QwenVisionQtClient.h"
+#include "WebView2Widget.h"
 
 #include <QCheckBox>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QPointer>
-#include <QPropertyAnimation>
 #include <QPushButton>
 #include <QPixmap>
-#include <QScrollArea>
-#include <QScrollBar>
 #include <QSizePolicy>
 #include <QStyle>
 #include <QTextEdit>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
-#include <QWheelEvent>
+#include <QWidget>
 #include <QtConcurrent>
 
 namespace {
-
-class SmoothScrollArea final : public QScrollArea {
-public:
-    explicit SmoothScrollArea(QWidget* parent = nullptr)
-        : QScrollArea(parent) {
-        animation_ = new QPropertyAnimation(this);
-        animation_->setTargetObject(verticalScrollBar());
-        animation_->setPropertyName("value");
-        animation_->setDuration(220);
-        animation_->setEasingCurve(QEasingCurve::OutCubic);
-    }
-
-protected:
-    void wheelEvent(QWheelEvent* event) override {
-        if (verticalScrollBar() == nullptr) {
-            QScrollArea::wheelEvent(event);
-            return;
-        }
-
-        event->accept();
-        const int delta = event->angleDelta().y();
-        if (delta == 0) {
-            return;
-        }
-
-        const int currentValue = verticalScrollBar()->value();
-        const int step = qMax(36, verticalScrollBar()->singleStep() * 3);
-        const int direction = delta > 0 ? -1 : 1;
-        const int targetValue = qBound(verticalScrollBar()->minimum(),
-                                       currentValue + direction * step,
-                                       verticalScrollBar()->maximum());
-
-        animation_->stop();
-        animation_->setStartValue(currentValue);
-        animation_->setEndValue(targetValue);
-        animation_->start();
-    }
-
-private:
-    QPropertyAnimation* animation_ = nullptr;
-};
 
 QString stageTitleText(const ConnectionState& state) {
     switch (state.assistantStatus) {
@@ -196,6 +155,19 @@ QString latestUserOverview(const QList<AgentUiMessage>& messages) {
     return QStringLiteral("支持自由输入需求；勾选“结合当前画面”后，会先由 Qwen 识别图像，再交给 DeepSeek 回答。");
 }
 
+QString jsonBase64(const QList<AgentUiMessage>& messages) {
+    QJsonArray array;
+    for (const AgentUiMessage& message : messages) {
+        array.append(QJsonObject {
+            {"role", message.role},
+            {"title", message.title},
+            {"body", message.rawText},
+            {"imagePath", message.imagePath}
+        });
+    }
+    return QString::fromLatin1(QJsonDocument(array).toJson(QJsonDocument::Compact).toBase64());
+}
+
 } // namespace
 
 ChatPage::ChatPage(AppConfig& config, QWidget* parent)
@@ -275,23 +247,28 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationLayout->setContentsMargins(18, 18, 18, 18);
     conversationLayout->setSpacing(12);
 
-    chatScroll_ = new SmoothScrollArea(this);
-    chatScroll_->setWidgetResizable(true);
-    chatScroll_->setObjectName("chatScroll");
-    chatScroll_->setFrameShape(QFrame::NoFrame);
-    chatScroll_->setAttribute(Qt::WA_TranslucentBackground, true);
-    chatScroll_->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
-    chatScroll_->viewport()->setAutoFillBackground(false);
-    chatScroll_->verticalScrollBar()->setSingleStep(26);
+    conversationContainer_ = new QWidget(conversationCard);
+    conversationContainer_->setObjectName("chatScroll");
+    conversationContainer_->setFocusPolicy(Qt::StrongFocus);
+    conversationContainer_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    conversationContainer_->setMinimumHeight(420);
+    auto* conversationPlaceholderLayout = new QVBoxLayout(conversationContainer_);
+    conversationPlaceholderLayout->setContentsMargins(0, 0, 0, 0);
+    conversationPlaceholderLayout->setSpacing(0);
 
-    auto* inner = new QWidget(chatScroll_);
-    inner->setAttribute(Qt::WA_TranslucentBackground, true);
-    inner->setAutoFillBackground(false);
-    messages_ = new QVBoxLayout(inner);
-    messages_->setContentsMargins(8, 8, 8, 8);
-    messages_->setSpacing(16);
-    messages_->addStretch(1);
-    chatScroll_->setWidget(inner);
+    conversationWebView_ = new WebView2Widget(conversationContainer_);
+    conversationWebView_->setObjectName("chatConversationWebView");
+    conversationWebView_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    conversationWebView_->setMinimumHeight(420);
+    QObject::connect(conversationWebView_, &WebView2Widget::initializationFailed, this, [this](const QString& reason) {
+        appendUiMessage({QStringLiteral("system"),
+                         QStringLiteral("聊天渲染器初始化失败"),
+                         reason,
+                         QString(),
+                         QString()});
+        setAnimatedLabelText(stageStatus_, QStringLiteral("聊天渲染器初始化失败：%1").arg(reason), false, 220);
+    });
+    conversationPlaceholderLayout->addWidget(conversationWebView_, 1);
 
     auto* composerCard = new QWidget(this);
     composerCard->setObjectName("chatComposerCard");
@@ -335,7 +312,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerLayout->addLayout(composerActions);
 
     conversationLayout->addWidget(sectionCaption_);
-    conversationLayout->addWidget(chatScroll_, 1);
+    conversationLayout->addWidget(conversationContainer_, 1);
     conversationLayout->addWidget(composerCard, 0);
 
     auto* rightWorkspace = new QWidget(this);
@@ -434,13 +411,7 @@ void ChatPage::setLatestSession(const ConnectionState& state) {
 }
 
 void ChatPage::clearMessages() {
-    while (messages_->count() > 1) {
-        QLayoutItem* item = messages_->takeAt(0);
-        if (item->widget()) {
-            item->widget()->deleteLater();
-        }
-        delete item;
-    }
+    Q_UNUSED(this)
 }
 
 void ChatPage::updateStagePanel(const ConnectionState& state) {
@@ -477,32 +448,230 @@ void ChatPage::updateOverviewPanels(const ConnectionState& state) {
 }
 
 void ChatPage::rebuildConversation() {
-    clearMessages();
-    int insertAt = qMax(0, messages_->count() - 1);
-    for (const AgentUiMessage& message : uiMessages_) {
-        auto role = ChatMessageWidget::Role::System;
-        if (message.role == QStringLiteral("user")) {
-            role = ChatMessageWidget::Role::User;
-        } else if (message.role == QStringLiteral("assistant")) {
-            role = ChatMessageWidget::Role::Assistant;
-        }
-        auto* widget = new ChatMessageWidget(role, this);
-        if (!message.htmlText.isEmpty()) {
-            widget->setRichMessage(message.title, message.htmlText, message.imagePath);
-        } else {
-            widget->setMessage(message.title, message.rawText, message.imagePath);
-        }
-        messages_->insertWidget(insertAt, widget);
-        ++insertAt;
+    if (conversationWebView_ != nullptr) {
+        conversationWebView_->setHtmlContent(buildConversationHtml());
+    }
+}
+
+QString ChatPage::buildConversationHtml() const {
+    const QString payload = jsonBase64(uiMessages_);
+    return QStringLiteral(R"HTML(
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: rgba(0,0,0,0);
+      --bubble-ai: rgba(8, 18, 38, 0.78);
+      --bubble-user: rgba(18, 34, 70, 0.82);
+      --bubble-system: rgba(10, 22, 42, 0.72);
+      --border: rgba(170, 220, 255, 0.16);
+      --text: #eaf4ff;
+      --muted: #b9d4f2;
+      --accent: #8ec5ff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--text);
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+      overflow-x: hidden;
+      scroll-behavior: smooth;
+    }
+    body {
+      padding: 16px 18px 22px 18px;
+    }
+    .conversation {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+    }
+    .message {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      width: 100%;
+    }
+    .message.user {
+      justify-content: flex-end;
+    }
+    .message.user .avatar { order: 2; }
+    .message.user .bubble { order: 1; max-width: 72%; background: var(--bubble-user); }
+    .message.assistant .bubble { max-width: 94%; background: var(--bubble-ai); }
+    .message.system .bubble { max-width: 90%; background: var(--bubble-system); }
+    .avatar {
+      flex: 0 0 36px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      background: rgba(103,126,255,0.35);
+      border: 1px solid rgba(211,223,255,0.30);
+      user-select: none;
+    }
+    .message.user .avatar { background: rgba(75,150,255,0.50); }
+    .message.system .avatar { background: rgba(105,125,154,0.28); color: #d9e6f3; }
+    .bubble {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 18px 20px;
+      min-width: 260px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #ffffff;
+    }
+    .body {
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.72;
+      word-break: break-word;
+    }
+    .body h1, .body h2, .body h3, .body h4 {
+      margin: 0.55em 0 0.38em 0;
+      line-height: 1.22;
+    }
+    .body h1 { font-size: 1.45em; }
+    .body h2 { font-size: 1.28em; }
+    .body h3 { font-size: 1.14em; }
+    .body p { margin: 0.42em 0; }
+    .body ul, .body ol { margin: 0.4em 0 0.55em 1.3em; }
+    .body li { margin: 0.22em 0; }
+    .body code {
+      background: rgba(255,255,255,0.06);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-family: Consolas, monospace;
+    }
+    .body pre {
+      background: rgba(5,14,32,0.88);
+      padding: 12px;
+      border-radius: 12px;
+      overflow-x: auto;
+    }
+    .body blockquote {
+      border-left: 3px solid rgba(118,184,255,0.55);
+      margin: 0.5em 0;
+      padding-left: 12px;
+      color: #c8ddf5;
+    }
+    .message-image {
+      margin-top: 12px;
+      max-width: min(560px, 100%);
+      border-radius: 16px;
+      border: 1px solid rgba(155, 210, 255, 0.22);
+      display: block;
+    }
+    .MathJax, mjx-container {
+      font-size: 0.94em !important;
+    }
+    mjx-container[display="true"] {
+      margin: 0.55em auto !important;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(126, 181, 255, 0.42);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      chtml: { scale: 0.92 },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <div id="conversation" class="conversation"></div>
+  <script>
+    function decodePayload(base64) {
+      const binary = atob(base64);
+      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
     }
 
-    if (chatScroll_ != nullptr && chatScroll_->verticalScrollBar() != nullptr) {
-        QTimer::singleShot(0, this, [this]() {
-            if (chatScroll_ != nullptr && chatScroll_->verticalScrollBar() != nullptr) {
-                chatScroll_->verticalScrollBar()->setValue(chatScroll_->verticalScrollBar()->maximum());
-            }
-        });
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
+
+    function avatarText(role) {
+      if (role === 'user') return '我';
+      if (role === 'assistant') return 'AI';
+      return '系统';
+    }
+
+    function renderBody(role, body) {
+      if (role === 'assistant') {
+        return marked.parse(body || '', { breaks: true, gfm: true });
+      }
+      return '<p>' + escapeHtml(body || '').replace(/\n/g, '<br/>') + '</p>';
+    }
+
+    function renderConversation() {
+      const payload = decodePayload('__PAYLOAD_BASE64__');
+      const root = document.getElementById('conversation');
+      root.innerHTML = payload.map((message) => {
+        const imageHtml = message.imagePath
+          ? '<img class="message-image" src="' + encodeURI('file:///' + message.imagePath.replace(/\\/g, '/')) + '" />'
+          : '';
+        return `
+          <section class="message ${message.role}">
+            <div class="avatar">${avatarText(message.role)}</div>
+            <div class="bubble">
+              <div class="title">${escapeHtml(message.title || '')}</div>
+              <div class="body">${renderBody(message.role, message.body || '')}</div>
+              ${imageHtml}
+            </div>
+          </section>`;
+      }).join('');
+
+      const finalizeScroll = () => window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' });
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([root]).then(finalizeScroll).catch(finalizeScroll);
+      } else {
+        finalizeScroll();
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderConversation);
+    } else {
+      renderConversation();
+    }
+  </script>
+</body>
+</html>
+)HTML").replace(QStringLiteral("__PAYLOAD_BASE64__"), payload);
 }
 
 void ChatPage::appendUiMessage(const AgentUiMessage& message) {
@@ -588,9 +757,8 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
         return result;
     }
 
-    MarkdownLatexRenderer renderer(config_);
     result.assistantMarkdown = completion.content;
-    result.assistantHtml = renderer.renderToHtml(completion.content);
+    result.assistantHtml = QString();
     result.success = true;
     return result;
 }

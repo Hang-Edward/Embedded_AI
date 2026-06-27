@@ -7,13 +7,12 @@
 #include <QFutureWatcher>
 #include <QList>
 
-class QVBoxLayout;
 class QTextEdit;
 class QLabel;
 class QWidget;
-class QScrollArea;
 class QPushButton;
 class QCheckBox;
+class WebView2Widget;
 
 struct AgentUiMessage {
     QString role;
@@ -44,6 +43,7 @@ private:
     void updateStagePanel(const ConnectionState& state);
     void updateOverviewPanels(const ConnectionState& state);
     void rebuildConversation();
+    QString buildConversationHtml() const;
     void appendUiMessage(const AgentUiMessage& message);
     void sendPrompt();
     AgentTurnResult runAgentTurn(const QString& userPrompt,
@@ -56,7 +56,6 @@ private:
     ConnectionState latestState_;
     QList<AgentUiMessage> uiMessages_;
     QFutureWatcher<AgentTurnResult>* turnWatcher_ = nullptr;
-    QVBoxLayout* messages_ = nullptr;
     QLabel* sectionCaption_ = nullptr;
     QLabel* stageTitle_ = nullptr;
     QLabel* stageStatus_ = nullptr;
@@ -65,7 +64,8 @@ private:
     QLabel* visualStatus_ = nullptr;
     QLabel* visualFrame_ = nullptr;
     QLabel* answerSummary_ = nullptr;
-    QScrollArea* chatScroll_ = nullptr;
+    QWidget* conversationContainer_ = nullptr;
+    WebView2Widget* conversationWebView_ = nullptr;
     QTextEdit* composerEdit_ = nullptr;
     QPushButton* sendButton_ = nullptr;
     QPushButton* clearButton_ = nullptr;
