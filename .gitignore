@@ -2,6 +2,7 @@
 /build/
 /build-msys2*/
 /build-qt/
+/build-qt-agent/
 /dist/
 hardware/pi_bridge/build/
 hardware/firmware/**/build/
@@ -15,6 +16,7 @@ hardware/firmware/**/build/
 # Local runtime files
 logs/
 captures/
+/artifacts/
 *.log
 audit-log.dat
 scene.jpg
@@ -35,3 +37,28 @@ config/qwen-vision.ini
 config/qwen-vision.key
 *.key
 *.pem
+
+# WebView2 SDK extras kept out of Git; only the minimal x64 runtime subset is tracked
+/third_party/webview2/*.nupkg
+/third_party/webview2/*.zip
+/third_party/webview2/1.0.4022.49/.signature.p7s
+/third_party/webview2/1.0.4022.49/Microsoft.Web.WebView2.nuspec
+/third_party/webview2/1.0.4022.49/WebView2.idl
+/third_party/webview2/1.0.4022.49/WebView2.tlb
+/third_party/webview2/1.0.4022.49/[[]Content_Types].xml
+/third_party/webview2/1.0.4022.49/_rels/
+/third_party/webview2/1.0.4022.49/build/Common.targets
+/third_party/webview2/1.0.4022.49/build/Microsoft.Web.WebView2.targets
+/third_party/webview2/1.0.4022.49/build/WebView2Rules.Project.xml
+/third_party/webview2/1.0.4022.49/build/native/Microsoft.Web.WebView2.targets
+/third_party/webview2/1.0.4022.49/build/native/arm64/
+/third_party/webview2/1.0.4022.49/build/native/include-winrt/
+/third_party/webview2/1.0.4022.49/build/native/x64/WebView2LoaderStatic.lib
+/third_party/webview2/1.0.4022.49/build/native/x86/
+/third_party/webview2/1.0.4022.49/build/wv2winrt.targets
+/third_party/webview2/1.0.4022.49/buildTransitive/
+/third_party/webview2/1.0.4022.49/lib/
+/third_party/webview2/1.0.4022.49/lib_manual/
+/third_party/webview2/1.0.4022.49/package/
+/third_party/webview2/1.0.4022.49/runtimes/
+/third_party/webview2/1.0.4022.49/tools/
