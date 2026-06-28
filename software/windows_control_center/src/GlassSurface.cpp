@@ -22,6 +22,70 @@ qreal randomBetween(qreal minimum, qreal maximum) {
     return minimum + QRandomGenerator::global()->generateDouble() * (maximum - minimum);
 }
 
+void drawNavIcon(QPainter& painter, const QRectF& rect, const QString& key, const QColor& color) {
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    QPen pen(color, 1.7, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+
+    const qreal left = rect.left();
+    const qreal top = rect.top();
+    const qreal width = rect.width();
+    const qreal height = rect.height();
+    const QPointF center = rect.center();
+
+    // 中文注释：这里用矢量线条手绘图标，避免依赖某个字符字形导致图标缺失。
+    if (key == QStringLiteral("chat")) {
+        QPainterPath bubble;
+        bubble.addRoundedRect(QRectF(left + 4.0, top + 5.0, width - 8.0, height - 11.0), 6.0, 6.0);
+        bubble.moveTo(left + 10.0, top + height - 6.0);
+        bubble.lineTo(left + 12.5, top + height - 10.0);
+        bubble.lineTo(left + 16.0, top + height - 7.0);
+        painter.drawPath(bubble);
+        painter.drawPoint(QPointF(center.x() - 5.0, center.y()));
+        painter.drawPoint(QPointF(center.x(), center.y()));
+        painter.drawPoint(QPointF(center.x() + 5.0, center.y()));
+    } else if (key == QStringLiteral("history")) {
+        QRectF arcRect(left + 5.0, top + 5.0, width - 10.0, height - 10.0);
+        painter.drawArc(arcRect, 40 * 16, 250 * 16);
+        QPainterPath arrow;
+        arrow.moveTo(left + width - 8.0, top + 10.0);
+        arrow.lineTo(left + width - 12.0, top + 9.0);
+        arrow.lineTo(left + width - 10.0, top + 13.0);
+        painter.drawPath(arrow);
+    } else if (key == QStringLiteral("hardware")) {
+        painter.drawLine(QPointF(center.x() - 5.0, top + 8.0), QPointF(center.x() - 5.0, center.y()));
+        painter.drawLine(QPointF(center.x() + 5.0, top + 8.0), QPointF(center.x() + 5.0, center.y()));
+        painter.drawLine(QPointF(center.x() - 8.0, center.y()), QPointF(center.x() + 8.0, center.y()));
+        painter.drawLine(QPointF(center.x(), center.y()), QPointF(center.x(), top + height - 7.0));
+        painter.drawArc(QRectF(center.x() - 5.0, top + height - 12.0, 10.0, 8.0), 180 * 16, 180 * 16);
+    } else if (key == QStringLiteral("camera")) {
+        painter.drawRoundedRect(QRectF(left + 4.5, top + 8.0, width - 9.0, height - 13.0), 4.0, 4.0);
+        painter.drawEllipse(QRectF(center.x() - 4.0, center.y() - 4.0, 8.0, 8.0));
+        painter.drawLine(QPointF(left + 8.0, top + 8.0), QPointF(left + 12.0, top + 5.0));
+        painter.drawLine(QPointF(left + 12.0, top + 5.0), QPointF(left + 17.0, top + 5.0));
+    } else if (key == QStringLiteral("logs")) {
+        for (int i = 0; i < 3; ++i) {
+            const qreal y = top + 8.0 + i * 6.0;
+            painter.drawLine(QPointF(left + 7.0, y), QPointF(left + 11.0, y));
+            painter.drawLine(QPointF(left + 14.0, y), QPointF(left + width - 6.0, y));
+        }
+    } else if (key == QStringLiteral("settings")) {
+        painter.drawEllipse(QRectF(center.x() - 4.5, center.y() - 4.5, 9.0, 9.0));
+        for (int i = 0; i < 6; ++i) {
+            const qreal angle = i * 60.0;
+            const qreal radians = qDegreesToRadians(angle);
+            const QPointF inner(center.x() + std::cos(radians) * 6.0, center.y() + std::sin(radians) * 6.0);
+            const QPointF outer(center.x() + std::cos(radians) * 9.0, center.y() + std::sin(radians) * 9.0);
+            painter.drawLine(inner, outer);
+        }
+    } else {
+        painter.drawEllipse(QRectF(left + 7.0, top + 7.0, width - 14.0, height - 14.0));
+    }
+    painter.restore();
+}
+
 } // namespace
 
 LiquidNavButton::LiquidNavButton(const QString& text, QWidget* parent)
@@ -48,6 +112,94 @@ LiquidNavButton::LiquidNavButton(const QString& text, QWidget* parent)
         selectionProgress_ = value.toReal();
         update();
     });
+}
+
+GlassCheckBox::GlassCheckBox(const QString& text, QWidget* parent)
+    : QCheckBox(text, parent) {
+    setCursor(Qt::PointingHandCursor);
+    setAttribute(Qt::WA_Hover, true);
+    setMinimumHeight(24);
+    setStyleSheet(QStringLiteral("background: transparent;"));
+
+    hoverAnimation_ = new QVariantAnimation(this);
+    hoverAnimation_->setDuration(140);
+    hoverAnimation_->setEasingCurve(QEasingCurve::OutCubic);
+    connect(hoverAnimation_, &QVariantAnimation::valueChanged, this, [this](const QVariant& value) {
+        hoverProgress_ = value.toReal();
+        update();
+    });
+}
+
+QSize GlassCheckBox::sizeHint() const {
+    QFont textFont = font();
+    textFont.setWeight(QFont::DemiBold);
+    const QFontMetrics metrics(textFont);
+    const int indicatorWidth = 18;
+    const int spacing = 10;
+    const int horizontalPadding = 14;
+    const int widthHint = indicatorWidth + spacing + metrics.horizontalAdvance(text()) + horizontalPadding;
+    const int heightHint = qMax(26, metrics.height() + 8);
+    return QSize(widthHint, heightHint);
+}
+
+QSize GlassCheckBox::minimumSizeHint() const {
+    return sizeHint();
+}
+
+bool GlassCheckBox::event(QEvent* event) {
+    switch (event->type()) {
+    case QEvent::Enter:
+        animateHover(1.0);
+        break;
+    case QEvent::Leave:
+        animateHover(0.0);
+        break;
+    default:
+        break;
+    }
+    return QCheckBox::event(event);
+}
+
+void GlassCheckBox::paintEvent(QPaintEvent* event) {
+    Q_UNUSED(event)
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    const QRectF boxRect(0.0, (height() - 18.0) / 2.0, 18.0, 18.0);
+    const qreal glow = qBound<qreal>(0.0, hoverProgress_, 1.0);
+    const bool checked = isChecked();
+
+    painter.setPen(QPen(QColor(176, 221, 255, checked ? 210 : 122), checked ? 1.45 : 1.1));
+    painter.setBrush(checked
+                         ? QColor(87, 154, 255, 226)
+                         : QColor(18, 38, 76, 155 + static_cast<int>(glow * 18.0)));
+    painter.drawRoundedRect(boxRect, 6.0, 6.0);
+
+    if (checked) {
+        painter.setPen(QPen(QColor(255, 255, 255, 245), 2.1, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        QPainterPath tick;
+        tick.moveTo(boxRect.left() + 4.2, boxRect.top() + 9.4);
+        tick.lineTo(boxRect.left() + 7.6, boxRect.top() + 12.7);
+        tick.lineTo(boxRect.left() + 13.8, boxRect.top() + 5.9);
+        painter.drawPath(tick);
+    }
+
+    painter.setPen(QColor(226, 239, 255, 234));
+    QFont textFont = font();
+    textFont.setWeight(QFont::DemiBold);
+    painter.setFont(textFont);
+    const QRectF textRect(boxRect.right() + 9.0, 0.0, width() - boxRect.right() - 6.0, height());
+    painter.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeft, text());
+}
+
+void GlassCheckBox::animateHover(qreal target) {
+    if (hoverAnimation_ == nullptr) {
+        return;
+    }
+    hoverAnimation_->stop();
+    hoverAnimation_->setStartValue(hoverProgress_);
+    hoverAnimation_->setEndValue(target);
+    hoverAnimation_->start();
 }
 
 bool LiquidNavButton::event(QEvent* event) {
@@ -128,12 +280,7 @@ void LiquidNavButton::paintEvent(QPaintEvent* event) {
         painter.setPen(Qt::NoPen);
         painter.setBrush(QColor(220, 242, 255, 18 + static_cast<int>(energy * 42)));
         painter.drawEllipse(glyphRect);
-        painter.setPen(QColor(239, 248, 255, 228));
-        QFont glyphFont = font();
-        glyphFont.setPointSizeF(glyphFont.pointSizeF() + 1.5);
-        glyphFont.setWeight(QFont::DemiBold);
-        painter.setFont(glyphFont);
-        painter.drawText(glyphRect, Qt::AlignCenter, glyph);
+        drawNavIcon(painter, glyphRect, property("navKey").toString(), QColor(239, 248, 255, 232));
         textLeft = glyphRect.right() + 14.0;
     }
 

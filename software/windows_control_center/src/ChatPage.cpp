@@ -1,10 +1,10 @@
 #include "ChatPage.h"
 
 #include "DeepSeekChatClient.h"
+#include "GlassSurface.h"
 #include "QwenVisionQtClient.h"
 #include "WebView2Widget.h"
 
-#include <QCheckBox>
 #include <QFrame>
 #include <QFile>
 #include <QHBoxLayout>
@@ -219,6 +219,13 @@ QString htmlEscapedForScript(const QString& text) {
 ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     : BasePage("实时对话", "这里是主工作台：输入需求，DeepSeek 负责推理与回复，Qwen 只负责视觉观察。", parent)
     , config_(config) {
+    titleLabel()->setProperty("chatPage", true);
+    titleLabel()->style()->unpolish(titleLabel());
+    titleLabel()->style()->polish(titleLabel());
+    if (QLabel* subtitleLabel = findChild<QLabel*>(QStringLiteral("pageSubtitle"), Qt::FindDirectChildrenOnly)) {
+        subtitleLabel->hide();
+    }
+
     turnWatcher_ = new QFutureWatcher<AgentTurnResult>(this);
     QObject::connect(turnWatcher_, &QFutureWatcher<AgentTurnResult>::finished, this, [this]() {
         const AgentTurnResult result = turnWatcher_->result();
@@ -259,14 +266,14 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     leftWorkspace->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     auto* leftLayout = new QVBoxLayout(leftWorkspace);
     leftLayout->setContentsMargins(0, 0, 0, 0);
-    leftLayout->setSpacing(12);
+    leftLayout->setSpacing(10);
 
     auto* stagePanel = new QWidget(this);
     stagePanel->setObjectName("chatStagePanel");
     stagePanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     auto* stageLayout = new QVBoxLayout(stagePanel);
-    stageLayout->setContentsMargins(18, 14, 18, 14);
-    stageLayout->setSpacing(6);
+    stageLayout->setContentsMargins(18, 12, 18, 12);
+    stageLayout->setSpacing(5);
 
     stageTitle_ = new QLabel(QStringLiteral("Agent 对话已就绪"), stagePanel);
     stageTitle_->setObjectName("chatStageTitle");
@@ -290,14 +297,14 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationCard->setObjectName("chatConversationCard");
     conversationCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     auto* conversationLayout = new QVBoxLayout(conversationCard);
-    conversationLayout->setContentsMargins(22, 20, 22, 18);
-    conversationLayout->setSpacing(16);
+    conversationLayout->setContentsMargins(20, 18, 20, 16);
+    conversationLayout->setSpacing(14);
 
     conversationContainer_ = new QWidget(conversationCard);
     conversationContainer_->setObjectName("chatScroll");
     conversationContainer_->setFocusPolicy(Qt::StrongFocus);
     conversationContainer_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    conversationContainer_->setMinimumHeight(560);
+    conversationContainer_->setMinimumHeight(650);
     auto* conversationPlaceholderLayout = new QVBoxLayout(conversationContainer_);
     conversationPlaceholderLayout->setContentsMargins(0, 0, 0, 0);
     conversationPlaceholderLayout->setSpacing(0);
@@ -305,7 +312,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationWebView_ = new WebView2Widget(conversationContainer_);
     conversationWebView_->setObjectName("chatConversationWebView");
     conversationWebView_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    conversationWebView_->setMinimumHeight(560);
+    conversationWebView_->setMinimumHeight(650);
     QObject::connect(conversationWebView_, &WebView2Widget::initializationFailed, this, [this](const QString& reason) {
         appendUiMessage({QStringLiteral("system"),
                          QStringLiteral("聊天渲染器初始化失败"),
@@ -325,15 +332,19 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerEdit_ = new QTextEdit(composerCard);
     composerEdit_->setObjectName("chatComposerEdit");
     composerEdit_->setPlaceholderText(QStringLiteral("输入你的需求，例如：\n- 帮我总结当前画面\n- 请结合画面解释这道题\n- 根据我刚才的实验结果给出下一步建议"));
-    composerEdit_->setMinimumHeight(96);
+    composerEdit_->setMinimumHeight(104);
 
     auto* composerActions = new QHBoxLayout();
     composerActions->setContentsMargins(0, 0, 0, 0);
     composerActions->setSpacing(10);
 
-    includeSceneCheck_ = new QCheckBox(QStringLiteral("结合当前画面"), composerCard);
+    includeSceneCheck_ = new GlassCheckBox(QStringLiteral("结合当前画面"), composerCard);
     includeSceneCheck_->setObjectName("chatSceneCheck");
-    includeSceneCheck_->setChecked(true);
+    includeSceneCheck_->setChecked(config_.chatIncludeCurrentScene);
+    QObject::connect(includeSceneCheck_, &QCheckBox::toggled, this, [this](bool checked) {
+        config_.chatIncludeCurrentScene = checked;
+        config_.save();
+    });
 
     clearButton_ = new QPushButton(QStringLiteral("清空会话"), composerCard);
     clearButton_->setObjectName("secondaryButton");
@@ -454,10 +465,10 @@ QString ChatPage::buildConversationHtml() const {
 __KATEX_CSS__
     :root {
       color-scheme: dark;
-      --bg: rgba(0,0,0,0);
-      --bubble-ai: rgba(8, 18, 38, 0.78);
-      --bubble-user: rgba(18, 34, 70, 0.82);
-      --bubble-system: rgba(10, 22, 42, 0.72);
+      --bg: rgba(31, 61, 115, 0.34);
+      --bubble-ai: rgba(8, 18, 38, 0.46);
+      --bubble-user: rgba(18, 34, 70, 0.54);
+      --bubble-system: rgba(10, 22, 42, 0.44);
       --border: rgba(170, 220, 255, 0.16);
       --text: #eaf4ff;
       --muted: #b9d4f2;
@@ -467,20 +478,29 @@ __KATEX_CSS__
     html, body {
       margin: 0;
       padding: 0;
-      background: transparent;
+      background: linear-gradient(180deg, rgba(31, 61, 115, 0.34) 0%, rgba(20, 42, 84, 0.28) 100%);
+      background-repeat: no-repeat;
+      background-size: 100% 100%;
+      background-attachment: fixed;
       color: var(--text);
       font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
       overflow-x: hidden;
       scroll-behavior: smooth;
+      min-height: 100%;
     }
     body {
-      padding: 16px 18px 22px 18px;
+      padding: 18px 20px 26px 20px;
+      border-radius: 22px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+      min-height: calc(100vh - 44px);
     }
     .conversation {
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 22px;
       width: 100%;
+      max-width: 1180px;
+      margin: 0 auto 0 0;
     }
     .message {
       display: flex;
@@ -491,10 +511,14 @@ __KATEX_CSS__
     .message.user {
       justify-content: flex-end;
     }
+    .message.assistant,
+    .message.system {
+      justify-content: flex-start;
+    }
     .message.user .avatar { order: 2; }
-    .message.user .bubble { order: 1; max-width: 68%; background: var(--bubble-user); }
-    .message.assistant .bubble { max-width: 88%; background: var(--bubble-ai); }
-    .message.system .bubble { max-width: 90%; background: var(--bubble-system); }
+    .message.user .bubble { order: 1; max-width: 62%; background: var(--bubble-user); }
+    .message.assistant .bubble { max-width: 80%; background: var(--bubble-ai); }
+    .message.system .bubble { max-width: 76%; background: var(--bubble-system); }
     .avatar {
       flex: 0 0 36px;
       width: 36px;
@@ -513,12 +537,12 @@ __KATEX_CSS__
     .message.system .avatar { background: rgba(105,125,154,0.28); color: #d9e6f3; }
     .bubble {
       border: 1px solid var(--border);
-      border-radius: 18px;
-      padding: 18px 20px;
+      border-radius: 20px;
+      padding: 18px 22px;
       min-width: 220px;
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 38px rgba(2, 8, 22, 0.12);
     }
     .title {
       font-size: 15px;
@@ -528,8 +552,8 @@ __KATEX_CSS__
     }
     .body {
       color: var(--text);
-      font-size: 14px;
-      line-height: 1.76;
+      font-size: 15px;
+      line-height: 1.78;
       word-break: break-word;
       overflow-wrap: anywhere;
     }
@@ -585,7 +609,7 @@ __KATEX_CSS__
       color: var(--text);
     }
     .body .katex-display {
-      margin: 0.45em 0 0.62em 0;
+      margin: 0.42em 0 0.58em 0;
       max-width: 100%;
       overflow-x: auto;
       overflow-y: hidden;

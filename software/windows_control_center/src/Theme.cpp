@@ -103,22 +103,22 @@ QLabel#inspectorSectionLabel {
     padding-left: 2px;
 }
 QToolButton#inspectorToggle {
-    background: rgba(7, 18, 40, 0.34);
-    border: 1px solid rgba(185, 225, 255, 0.12);
-    border-radius: 14px;
+    background: rgba(7, 18, 40, 0.28);
+    border: 1px solid rgba(185, 225, 255, 0.10);
+    border-radius: 13px;
     color: #e9f4ff;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
-    padding: 10px 12px;
+    padding: 9px 11px;
     text-align: left;
 }
 QToolButton#inspectorToggle:hover {
-    background: rgba(18, 39, 80, 0.42);
-    border-color: rgba(205, 234, 255, 0.22);
+    background: rgba(18, 39, 80, 0.34);
+    border-color: rgba(205, 234, 255, 0.18);
 }
 QToolButton#inspectorToggle[focused="true"] {
-    background: rgba(28, 61, 124, 0.46);
-    border-color: rgba(170, 220, 255, 0.30);
+    background: rgba(28, 61, 124, 0.38);
+    border-color: rgba(170, 220, 255, 0.24);
 }
 QToolButton#inspectorToggle::menu-indicator {
     image: none;
@@ -196,8 +196,13 @@ QLabel#pageTitle {
     font-weight: 900;
     color: #ffffff;
 }
+QLabel#pageTitle[chatPage="true"] {
+    font-size: 22px;
+    font-weight: 860;
+    color: #f3f8ff;
+}
 QLabel#statusColumnTitle {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 850;
     color: #ffffff;
 }
@@ -217,17 +222,17 @@ QLabel#statusBeacon[status="ready"] { background: rgba(73, 255, 186, 0.90); bord
 QLabel#statusBeacon[status="busy"], QLabel#statusBeacon[status="connecting"] { background: rgba(255, 204, 95, 0.88); border-color: rgba(255, 243, 204, 0.64); }
 QLabel#statusBeacon[status="error"] { background: rgba(255, 117, 148, 0.88); border-color: rgba(255, 220, 230, 0.64); }
 QLabel#statusColumnSubtitle, QLabel#statusHint {
-    color: #bfd0e8;
-    line-height: 152%;
+    color: #b6cae3;
+    line-height: 156%;
 }
 QLabel#healthHeadline {
     color: #eaf4ff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
-    background: rgba(6, 17, 38, 0.42);
-    border: 1px solid rgba(184, 220, 255, 0.12);
+    background: rgba(6, 17, 38, 0.34);
+    border: 1px solid rgba(184, 220, 255, 0.10);
     border-radius: 16px;
-    line-height: 150%;
+    line-height: 154%;
 }
 QLabel#healthHeadline[flash="true"] {
     border-color: rgba(206, 236, 255, 0.34);
@@ -245,12 +250,12 @@ QLabel#readyDot[status="ready"] { background: #34d399; }
 QLabel#readyDot[status="busy"], QLabel#readyDot[status="warning"] { background: #fbbf24; }
 QLabel#readyDot[status="error"] { background: #fb7185; }
 QLabel#actionBanner {
-    background: rgba(8, 20, 42, 0.50);
-    border: 1px solid rgba(170, 215, 255, 0.18);
+    background: rgba(8, 20, 42, 0.42);
+    border: 1px solid rgba(170, 215, 255, 0.14);
     border-radius: 16px;
     color: #e6f3ff;
     font-weight: 800;
-    line-height: 150%;
+    line-height: 154%;
 }
 QLabel#actionBanner[flash="true"] {
     border-color: rgba(218, 242, 255, 0.36);
@@ -270,9 +275,9 @@ QLabel#actionBanner[status="error"] {
     color: #ffe4e8;
 }
 QLabel#metricChip {
-    background: rgba(7, 18, 40, 0.40);
-    border: 1px solid rgba(185, 225, 255, 0.12);
-    border-radius: 18px;
+    background: rgba(7, 18, 40, 0.34);
+    border: 1px solid rgba(185, 225, 255, 0.10);
+    border-radius: 16px;
     color: #e7f4ff;
     line-height: 150%;
 }
@@ -301,9 +306,9 @@ QLabel#metricChip[tone="neutral"] {
     border-color: rgba(134, 191, 255, 0.20);
 }
 QLabel#statusActionCard {
-    background: rgba(7, 18, 40, 0.42);
-    border: 1px solid rgba(185, 225, 255, 0.14);
-    border-radius: 18px;
+    background: rgba(7, 18, 40, 0.36);
+    border: 1px solid rgba(185, 225, 255, 0.11);
+    border-radius: 16px;
     color: #e7f4ff;
     line-height: 152%;
 }
@@ -324,8 +329,8 @@ QLabel#statusActionCard[tone="warning"] {
     border-color: rgba(255, 210, 112, 0.24);
 }
 QWidget#chatStagePanel {
-    background: rgba(7, 17, 37, 0.48);
-    border: 1px solid rgba(185, 225, 255, 0.12);
+    background: rgba(7, 17, 37, 0.38);
+    border: 1px solid rgba(185, 225, 255, 0.10);
     border-radius: 22px;
 }
 QWidget#chatStagePanel[flash="true"] {
@@ -334,19 +339,19 @@ QWidget#chatStagePanel[flash="true"] {
 }
 QLabel#chatStageTitle {
     color: #ffffff;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 840;
 }
 QLabel#chatStageStatus {
     color: #dcecff;
-    font-size: 14px;
-    font-weight: 620;
-    line-height: 156%;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 160%;
 }
 QLabel#chatStageMeta {
     color: #89a5c8;
     font-size: 11px;
-    line-height: 155%;
+    line-height: 160%;
 }
 QWidget#chatVisualCard {
     background: rgba(7, 16, 34, 0.54);
@@ -354,37 +359,28 @@ QWidget#chatVisualCard {
     border-radius: 20px;
 }
 QWidget#chatConversationCard {
-    background: rgba(5, 14, 31, 0.64);
-    border: 1px solid rgba(190, 227, 255, 0.12);
-    border-radius: 24px;
+    background: rgba(22, 46, 90, 0.20);
+    border: 1px solid rgba(190, 227, 255, 0.13);
+    border-radius: 26px;
 }
 QWidget#chatComposerCard {
-    background: rgba(4, 11, 24, 0.82);
-    border: 1px solid rgba(168, 214, 255, 0.10);
-    border-radius: 16px;
+    background: rgba(20, 42, 82, 0.30);
+    border: 1px solid rgba(168, 214, 255, 0.13);
+    border-radius: 18px;
 }
 QTextEdit#chatComposerEdit {
-    background: rgba(4, 11, 24, 0.90);
+    background: rgba(16, 35, 70, 0.48);
     color: #eef6ff;
-    border: 1px solid rgba(170, 220, 255, 0.12);
-    border-radius: 14px;
-    padding: 12px 14px;
+    border: 1px solid rgba(170, 220, 255, 0.16);
+    border-radius: 16px;
+    padding: 14px 16px;
     selection-background-color: rgba(83, 160, 255, 165);
 }
 QCheckBox#chatSceneCheck {
-    color: #dcecff;
-    spacing: 8px;
-}
-QCheckBox#chatSceneCheck::indicator {
-    width: 18px;
-    height: 18px;
-    border-radius: 6px;
-    border: 1px solid rgba(170, 220, 255, 0.26);
-    background: rgba(9, 20, 42, 0.76);
-}
-QCheckBox#chatSceneCheck::indicator:checked {
-    background: rgba(81, 154, 255, 0.88);
-    border-color: rgba(214, 240, 255, 0.42);
+    color: #e4f1ff;
+    background: transparent;
+    spacing: 0px;
+    font-weight: 600;
 }
 QScrollArea#chatInsightScroll,
 QScrollArea#chatInsightScroll QWidget,
@@ -438,10 +434,10 @@ QLabel#chatAnswerBody {
     line-height: 160%;
 }
 QLabel#chatSectionLabel {
-    color: rgba(212, 232, 255, 0.68);
-    font-size: 10px;
+    color: rgba(212, 232, 255, 0.58);
+    font-size: 9px;
     font-weight: 800;
-    letter-spacing: 1.8px;
+    letter-spacing: 2.1px;
     text-transform: uppercase;
 }
 QLabel#chatImageHero {

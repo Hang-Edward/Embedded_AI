@@ -224,11 +224,11 @@ void MainWindow::buildSidebar(QHBoxLayout* root) {
     navLabel->setObjectName(QStringLiteral("sidebarSectionLabel"));
     side->addWidget(navLabel);
 
-    side->addWidget(makeNavButton(QStringLiteral("chat"), QStringLiteral("实时对话"), QStringLiteral("当前轮次、图像与 AI 回复"), QStringLiteral("◉")));
-    side->addWidget(makeNavButton(QStringLiteral("history"), QStringLiteral("历史记录"), QStringLiteral("查看最近完成的分析记录"), QStringLiteral("↺")));
-    side->addWidget(makeNavButton(QStringLiteral("hardware"), QStringLiteral("连接诊断"), QStringLiteral("硬件、串口与服务链路状态"), QStringLiteral("◎")));
-    side->addWidget(makeNavButton(QStringLiteral("camera"), QStringLiteral("摄像头画面"), QStringLiteral("检查当前同步回来的现场画面"), QStringLiteral("◌")));
-    side->addWidget(makeNavButton(QStringLiteral("logs"), QStringLiteral("原始日志"), QStringLiteral("读取树莓派侧完整执行日志"), QStringLiteral("⋯")));
+    side->addWidget(makeNavButton(QStringLiteral("chat"), QStringLiteral("实时对话"), QStringLiteral("当前轮次、图像与 AI 回复"), QStringLiteral("✦")));
+    side->addWidget(makeNavButton(QStringLiteral("history"), QStringLiteral("历史记录"), QStringLiteral("查看最近完成的分析记录"), QStringLiteral("↻")));
+    side->addWidget(makeNavButton(QStringLiteral("hardware"), QStringLiteral("连接诊断"), QStringLiteral("硬件、串口与服务链路状态"), QStringLiteral("⌁")));
+    side->addWidget(makeNavButton(QStringLiteral("camera"), QStringLiteral("摄像头画面"), QStringLiteral("检查当前同步回来的现场画面"), QStringLiteral("◫")));
+    side->addWidget(makeNavButton(QStringLiteral("logs"), QStringLiteral("原始日志"), QStringLiteral("读取树莓派侧完整执行日志"), QStringLiteral("☰")));
     side->addWidget(makeNavButton(QStringLiteral("settings"), QStringLiteral("设置"), QStringLiteral("SSH、项目目录与服务控制"), QStringLiteral("⚙")));
     side->addStretch(1);
 
@@ -270,7 +270,7 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
     connectionTitle_ = new QLabel(QStringLiteral("正在连接树莓派..."), titleWrap);
     connectionTitle_->setObjectName(QStringLiteral("connectionTitle"));
     connectionSubtitle_ = new QLabel(
-        QStringLiteral("优先尝试最近一次成功 IP，然后尝试 ssh ch@172.20.10.6。"),
+        QStringLiteral("树莓派链路、服务状态与最新现场数据会持续同步到这里。"),
         titleWrap);
     connectionSubtitle_->setObjectName(QStringLiteral("connectionSubtitle"));
     connectionSubtitle_->setWordWrap(false);
@@ -329,7 +329,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
 
     statusSurface_ = new GlassSurface(GlassSurface::Tone::Elevated, central_);
     statusSurface_->setObjectName(QStringLiteral("statusColumn"));
-    statusSurface_->setFixedWidth(330);
+    statusSurface_->setFixedWidth(344);
     auto* statusSurfaceLayout = new QVBoxLayout(statusSurface_);
     statusSurfaceLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -348,7 +348,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     statusHost->setAutoFillBackground(false);
     auto* statusLayout = new QVBoxLayout(statusHost);
     statusLayout->setContentsMargins(18, 18, 18, 18);
-    statusLayout->setSpacing(10);
+    statusLayout->setSpacing(8);
 
     auto* statusHeader = new QWidget(statusSurface_);
     statusHeader->setObjectName(QStringLiteral("statusColumnHeader"));
@@ -367,7 +367,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
 
     auto* statusTitle = new QLabel(QStringLiteral("系统状态总览"), statusTextWrap);
     statusTitle->setObjectName(QStringLiteral("statusColumnTitle"));
-    auto* statusSubtitle = new QLabel(QStringLiteral("把链路、阶段与恢复建议收拢在这里，让主舞台只保留当前对话与结果。"), statusTextWrap);
+    auto* statusSubtitle = new QLabel(QStringLiteral("连接、阶段与恢复建议统一收在这里。"), statusTextWrap);
     statusSubtitle->setObjectName(QStringLiteral("statusColumnSubtitle"));
     statusSubtitle->setWordWrap(true);
     statusSubtitle->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
@@ -422,7 +422,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     statusLayout->addWidget(healthHeadline_);
     sectionPrimaryToggle_ = new QToolButton(statusHost);
     sectionPrimaryToggle_->setObjectName(QStringLiteral("inspectorToggle"));
-    sectionPrimaryToggle_->setText(QStringLiteral("链路与阶段"));
+    sectionPrimaryToggle_->setText(QStringLiteral("实时链路"));
     sectionPrimaryToggle_->setCheckable(true);
     sectionPrimaryToggle_->setChecked(true);
     sectionPrimaryToggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -440,7 +440,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
 
     sectionRecoveryToggle_ = new QToolButton(statusHost);
     sectionRecoveryToggle_->setObjectName(QStringLiteral("inspectorToggle"));
-    sectionRecoveryToggle_->setText(QStringLiteral("建议与恢复"));
+    sectionRecoveryToggle_->setText(QStringLiteral("恢复建议"));
     sectionRecoveryToggle_->setCheckable(true);
     sectionRecoveryToggle_->setChecked(true);
     sectionRecoveryToggle_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -469,7 +469,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     statusScroll->setWidget(statusHost);
     statusSurfaceLayout->addWidget(statusScroll);
 
-    contentRow->addWidget(pageSurface_, 14);
+    contentRow->addWidget(pageSurface_, 15);
     contentRow->addWidget(statusSurface_, 4);
     rightSide->addLayout(contentRow, 1);
     switchPage(QStringLiteral("chat"));
@@ -507,13 +507,13 @@ void MainWindow::switchPage(const QString& key) {
 void MainWindow::applyConnectionState(const ConnectionState& state) {
     if (state.sshOnline) {
         setAnimatedLabelText(connectionTitle_, QStringLiteral("已连接：ssh ch@") + state.activeHost, false, 220);
-        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("正在通过 SSH 自动刷新服务、硬件、日志和最新图片。"), false, 220);
+        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("正在通过 SSH 持续刷新服务、硬件状态与最新现场数据。"), false, 220);
     } else if (state.piReachable) {
         setAnimatedLabelText(connectionTitle_, QStringLiteral("树莓派网络可达：") + state.activeHost, false, 220);
-        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("Ping 正常，但 SSH 握手失败。请检查 SSH key 或 authorized_keys。"), false, 220);
+        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("网络已通，但 SSH 握手失败。请检查 SSH key 或服务配置。"), false, 220);
     } else if (!state.activeHost.isEmpty()) {
         setAnimatedLabelText(connectionTitle_, QStringLiteral("正在检测树莓派：") + state.activeHost, false, 220);
-        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("先检测网络可达性，再检测 SSH。"), false, 220);
+        setAnimatedLabelText(connectionSubtitle_, QStringLiteral("正在检查网络可达性与 SSH 主链路。"), false, 220);
     } else {
         setAnimatedLabelText(connectionTitle_, QStringLiteral("树莓派未连接"), false, 220);
         setAnimatedLabelText(connectionSubtitle_, QStringLiteral("请确认 PC 与树莓派在同一网络，或在设置页手动输入 ssh ch@ip 后重连。"), false, 220);
@@ -645,6 +645,7 @@ QPushButton* MainWindow::makeNavButton(const QString& key, const QString& text, 
     button->setProperty("active", false);
     button->setProperty("subtitle", subtitle);
     button->setProperty("glyph", glyph);
+    button->setProperty("navKey", key);
     QObject::connect(button, &QPushButton::clicked, this, [this, key]() {
         switchPage(key);
     });

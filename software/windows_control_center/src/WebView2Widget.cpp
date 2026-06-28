@@ -334,6 +334,19 @@ HRESULT WebView2Widget::handleControllerCreated(HRESULT result, ICoreWebView2Con
         return coreResult;
     }
 
+    Microsoft::WRL::ComPtr<ICoreWebView2Controller2> controller2;
+    if (SUCCEEDED(controller_->QueryInterface(IID_ICoreWebView2Controller2,
+                                              reinterpret_cast<void**>(controller2.GetAddressOf())))
+        && controller2) {
+        // 中文注释：让 WebView2 自身底色透明，这样 HTML 里的半透明背景才能真正透出 Qt 主背景动画。
+        COREWEBVIEW2_COLOR transparentColor {};
+        transparentColor.A = 0;
+        transparentColor.R = 0;
+        transparentColor.G = 0;
+        transparentColor.B = 0;
+        controller2->put_DefaultBackgroundColor(transparentColor);
+    }
+
     controller_->put_IsVisible(TRUE);
     updateControllerBounds();
     initializationFinished_ = true;

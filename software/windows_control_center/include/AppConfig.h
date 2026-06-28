@@ -21,6 +21,7 @@ public:
     QString qwenVisionModel = "qwen3-vl-8b-instruct";
     QString qwenVisionApiKeyFile = "config/qwen-vision.key";
     QString qwenVisionApiKeyEnv = "EMBEDDED_AI_QWEN_KEY";
+    bool chatIncludeCurrentScene = true;
 
     QStringList candidateHosts() const;
     QString normalizedManualHost() const;

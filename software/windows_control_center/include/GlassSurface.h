@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QElapsedTimer>
+#include <QCheckBox>
 #include <QPixmap>
 #include <QPointF>
 #include <QPushButton>
@@ -29,6 +30,24 @@ private:
     QVariantAnimation* selectionAnimation_ = nullptr;
     qreal hoverProgress_ = 0.0;
     qreal selectionProgress_ = 0.0;
+};
+
+// 中文注释：自绘玻璃复选框，保证勾选框和对勾在所有平台下都稳定可见。
+class GlassCheckBox final : public QCheckBox {
+public:
+    explicit GlassCheckBox(const QString& text, QWidget* parent = nullptr);
+    QSize sizeHint() const override;
+    QSize minimumSizeHint() const override;
+
+protected:
+    bool event(QEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
+
+private:
+    void animateHover(qreal target);
+
+    QVariantAnimation* hoverAnimation_ = nullptr;
+    qreal hoverProgress_ = 0.0;
 };
 
 // 中文注释：切换透明页面前主动清除 backing store，避免上一页内容留下残影。

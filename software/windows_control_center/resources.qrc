@@ -2,6 +2,7 @@
     <qresource prefix="/assets">
         <file alias="liquid_space_wallpaper.png">assets/liquid_space_wallpaper.png</file>
         <file alias="app_icon.png">assets/app_icon.png</file>
+        <file alias="checkmark.svg">assets/checkmark.svg</file>
         <file alias="web/marked.min.js">assets/web/marked.min.js</file>
         <file alias="web/katex.min.js">assets/web/katex.min.js</file>
         <file alias="web/auto-render.min.js">assets/web/auto-render.min.js</file>

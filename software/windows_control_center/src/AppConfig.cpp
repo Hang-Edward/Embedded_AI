@@ -48,6 +48,7 @@ void AppConfig::load() {
     qwenVisionModel = settings.value("qwen/model", qwenVisionModel).toString();
     qwenVisionApiKeyFile = settings.value("qwen/apiKeyFile", qwenVisionApiKeyFile).toString();
     qwenVisionApiKeyEnv = settings.value("qwen/apiKeyEnv", qwenVisionApiKeyEnv).toString();
+    chatIncludeCurrentScene = settings.value("chat/includeCurrentScene", chatIncludeCurrentScene).toBool();
 }
 
 void AppConfig::save() const {
@@ -68,6 +69,7 @@ void AppConfig::save() const {
     settings.setValue("qwen/model", qwenVisionModel);
     settings.setValue("qwen/apiKeyFile", qwenVisionApiKeyFile);
     settings.setValue("qwen/apiKeyEnv", qwenVisionApiKeyEnv);
+    settings.setValue("chat/includeCurrentScene", chatIncludeCurrentScene);
 }
 
 QString AppConfig::settingsFilePath() const {

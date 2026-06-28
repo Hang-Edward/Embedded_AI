@@ -11,8 +11,8 @@ class QTextEdit;
 class QLabel;
 class QWidget;
 class QPushButton;
-class QCheckBox;
 class WebView2Widget;
+class GlassCheckBox;
 
 struct AgentUiMessage {
     QString role;
@@ -69,6 +69,6 @@ private:
     QTextEdit* composerEdit_ = nullptr;
     QPushButton* sendButton_ = nullptr;
     QPushButton* clearButton_ = nullptr;
-    QCheckBox* includeSceneCheck_ = nullptr;
+    GlassCheckBox* includeSceneCheck_ = nullptr;
     QString lastSessionKey_;
 };
