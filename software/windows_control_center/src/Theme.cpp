@@ -19,6 +19,9 @@ QWidget#statusCard {
     border: 1px solid rgba(215, 239, 255, 62);
     border-radius: 16px;
 }
+QWidget#sidebar, QWidget#glassHeader, QWidget#mainContentSurface, QWidget#statusColumn {
+    background: transparent;
+}
 QWidget#messageBubble {
     background: rgba(8, 18, 38, 118);
     border: 1px solid rgba(170, 220, 255, 58);
@@ -80,15 +83,15 @@ QGroupBox#settingsGroup::title {
     color: #dcecff;
 }
 QLabel#appTitle {
-    font-size: 19px;
-    font-weight: 820;
+    font-size: 18px;
+    font-weight: 860;
     color: #ffffff;
 }
 QLabel#sidebarTag, QLabel#sidebarSectionLabel {
-    color: rgba(206, 228, 255, 0.74);
-    font-size: 11px;
+    color: rgba(206, 228, 255, 0.66);
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.8px;
+    letter-spacing: 1.1px;
     text-transform: uppercase;
 }
 QLabel#inspectorSectionLabel {
@@ -125,25 +128,25 @@ QWidget#inspectorSectionBody {
     background: transparent;
 }
 QWidget#sidebarSummaryCard {
-    background: rgba(8, 18, 39, 0.48);
-    border: 1px solid rgba(188, 225, 255, 0.15);
-    border-radius: 18px;
+    background: rgba(7, 17, 36, 0.50);
+    border: 1px solid rgba(188, 225, 255, 0.12);
+    border-radius: 20px;
 }
 QLabel#sidebarSummaryTitle {
     color: #f4f8ff;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
 }
 QLabel#sidebarSummaryBody {
-    color: #b8cce5;
+    color: #a8bedb;
     font-size: 12px;
-    line-height: 148%;
+    line-height: 152%;
 }
 QWidget#sidebarReconnectWrap {
     background: transparent;
 }
 QLabel#connectionTitle {
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 800;
     color: #ffffff;
 }
@@ -151,9 +154,9 @@ QWidget#headerMetrics {
     background: transparent;
 }
 QLabel#headerStatusPill, QLabel#headerMetaPill {
-    padding: 9px 14px;
+    padding: 8px 13px;
     border-radius: 14px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     color: #eaf4ff;
     background: rgba(8, 20, 42, 0.40);
@@ -179,10 +182,10 @@ QWidget#statusColumn {
     background: transparent;
 }
 QLabel#heroEyebrow {
-    color: rgba(213, 235, 255, 0.78);
-    font-size: 12px;
+    color: rgba(213, 235, 255, 0.68);
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 1.1px;
     text-transform: uppercase;
 }
 QLabel#connectionSubtitle, QLabel#pageSubtitle, QLabel#cardDetail {
@@ -199,8 +202,8 @@ QLabel#statusColumnTitle {
     color: #ffffff;
 }
 QWidget#statusColumnHeader {
-    background: rgba(7, 18, 40, 0.52);
-    border: 1px solid rgba(185, 225, 255, 0.18);
+    background: rgba(6, 16, 35, 0.56);
+    border: 1px solid rgba(185, 225, 255, 0.15);
     border-radius: 18px;
 }
 QLabel#statusBeacon {
@@ -215,16 +218,16 @@ QLabel#statusBeacon[status="busy"], QLabel#statusBeacon[status="connecting"] { b
 QLabel#statusBeacon[status="error"] { background: rgba(255, 117, 148, 0.88); border-color: rgba(255, 220, 230, 0.64); }
 QLabel#statusColumnSubtitle, QLabel#statusHint {
     color: #bfd0e8;
-    line-height: 145%;
+    line-height: 152%;
 }
 QLabel#healthHeadline {
     color: #eaf4ff;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
-    background: rgba(6, 17, 38, 0.46);
-    border: 1px solid rgba(184, 220, 255, 0.14);
+    background: rgba(6, 17, 38, 0.42);
+    border: 1px solid rgba(184, 220, 255, 0.12);
     border-radius: 16px;
-    line-height: 145%;
+    line-height: 150%;
 }
 QLabel#healthHeadline[flash="true"] {
     border-color: rgba(206, 236, 255, 0.34);
@@ -242,12 +245,12 @@ QLabel#readyDot[status="ready"] { background: #34d399; }
 QLabel#readyDot[status="busy"], QLabel#readyDot[status="warning"] { background: #fbbf24; }
 QLabel#readyDot[status="error"] { background: #fb7185; }
 QLabel#actionBanner {
-    background: rgba(8, 20, 42, 0.56);
-    border: 1px solid rgba(170, 215, 255, 56);
+    background: rgba(8, 20, 42, 0.50);
+    border: 1px solid rgba(170, 215, 255, 0.18);
     border-radius: 16px;
     color: #e6f3ff;
     font-weight: 800;
-    line-height: 145%;
+    line-height: 150%;
 }
 QLabel#actionBanner[flash="true"] {
     border-color: rgba(218, 242, 255, 0.36);
@@ -267,11 +270,11 @@ QLabel#actionBanner[status="error"] {
     color: #ffe4e8;
 }
 QLabel#metricChip {
-    background: rgba(7, 18, 40, 0.46);
-    border: 1px solid rgba(185, 225, 255, 0.16);
+    background: rgba(7, 18, 40, 0.40);
+    border: 1px solid rgba(185, 225, 255, 0.12);
     border-radius: 18px;
     color: #e7f4ff;
-    line-height: 145%;
+    line-height: 150%;
 }
 QLabel#metricChip[flash="true"] {
     border-color: rgba(214, 240, 255, 0.34);
@@ -298,11 +301,11 @@ QLabel#metricChip[tone="neutral"] {
     border-color: rgba(134, 191, 255, 0.20);
 }
 QLabel#statusActionCard {
-    background: rgba(7, 18, 40, 0.50);
-    border: 1px solid rgba(185, 225, 255, 0.18);
+    background: rgba(7, 18, 40, 0.42);
+    border: 1px solid rgba(185, 225, 255, 0.14);
     border-radius: 18px;
     color: #e7f4ff;
-    line-height: 148%;
+    line-height: 152%;
 }
 QLabel#statusActionCard[flash="true"] {
     border-color: rgba(214, 240, 255, 0.34);
@@ -321,9 +324,9 @@ QLabel#statusActionCard[tone="warning"] {
     border-color: rgba(255, 210, 112, 0.24);
 }
 QWidget#chatStagePanel {
-    background: rgba(8, 19, 41, 0.48);
-    border: 1px solid rgba(185, 225, 255, 0.16);
-    border-radius: 20px;
+    background: rgba(7, 17, 37, 0.48);
+    border: 1px solid rgba(185, 225, 255, 0.12);
+    border-radius: 22px;
 }
 QWidget#chatStagePanel[flash="true"] {
     border-color: rgba(214, 240, 255, 0.34);
@@ -331,41 +334,41 @@ QWidget#chatStagePanel[flash="true"] {
 }
 QLabel#chatStageTitle {
     color: #ffffff;
-    font-size: 19px;
-    font-weight: 850;
+    font-size: 18px;
+    font-weight: 840;
 }
 QLabel#chatStageStatus {
     color: #dcecff;
-    font-size: 15px;
-    font-weight: 650;
-    line-height: 145%;
+    font-size: 14px;
+    font-weight: 620;
+    line-height: 156%;
 }
 QLabel#chatStageMeta {
-    color: #9fb8d7;
-    font-size: 12px;
-    line-height: 150%;
+    color: #89a5c8;
+    font-size: 11px;
+    line-height: 155%;
 }
 QWidget#chatVisualCard {
-    background: rgba(7, 17, 36, 0.56);
-    border: 1px solid rgba(185, 225, 255, 0.14);
-    border-radius: 22px;
+    background: rgba(7, 16, 34, 0.54);
+    border: 1px solid rgba(185, 225, 255, 0.12);
+    border-radius: 20px;
 }
 QWidget#chatConversationCard {
-    background: rgba(7, 17, 36, 0.58);
-    border: 1px solid rgba(185, 225, 255, 0.14);
-    border-radius: 22px;
+    background: rgba(5, 14, 31, 0.64);
+    border: 1px solid rgba(190, 227, 255, 0.12);
+    border-radius: 24px;
 }
 QWidget#chatComposerCard {
-    background: rgba(6, 16, 35, 0.72);
-    border: 1px solid rgba(168, 214, 255, 0.14);
-    border-radius: 18px;
+    background: rgba(4, 11, 24, 0.82);
+    border: 1px solid rgba(168, 214, 255, 0.10);
+    border-radius: 16px;
 }
 QTextEdit#chatComposerEdit {
-    background: rgba(5, 13, 29, 0.84);
+    background: rgba(4, 11, 24, 0.90);
     color: #eef6ff;
-    border: 1px solid rgba(170, 220, 255, 0.16);
+    border: 1px solid rgba(170, 220, 255, 0.12);
     border-radius: 14px;
-    padding: 10px 12px;
+    padding: 12px 14px;
     selection-background-color: rgba(83, 160, 255, 165);
 }
 QCheckBox#chatSceneCheck {
@@ -397,56 +400,56 @@ QWidget#statusHost {
     border: none;
 }
 QWidget#chatPanelCard {
-    background: rgba(7, 17, 36, 0.52);
-    border: 1px solid rgba(185, 225, 255, 0.15);
-    border-radius: 20px;
+    background: rgba(7, 17, 36, 0.48);
+    border: 1px solid rgba(185, 225, 255, 0.11);
+    border-radius: 18px;
 }
 QWidget#chatPanelCard[flash="true"] {
     border-color: rgba(214, 240, 255, 0.34);
     background: rgba(18, 38, 78, 0.54);
 }
 QWidget#chatAnswerCard {
-    background: rgba(7, 16, 34, 0.68);
-    border: 1px solid rgba(139, 196, 255, 0.18);
-    border-radius: 22px;
+    background: rgba(7, 16, 34, 0.54);
+    border: 1px solid rgba(139, 196, 255, 0.12);
+    border-radius: 18px;
 }
 QWidget#chatAnswerCard[flash="true"] {
     border-color: rgba(214, 240, 255, 0.34);
-    background: rgba(16, 28, 58, 0.80);
+    background: rgba(16, 28, 58, 0.72);
 }
 QLabel#chatPanelTitle {
     color: #ffffff;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 850;
 }
 QLabel#chatPanelSubtle {
-    color: #9fb8d7;
-    font-size: 12px;
-    line-height: 145%;
+    color: #8aa3c5;
+    font-size: 11px;
+    line-height: 150%;
 }
 QLabel#chatPanelBody {
-    color: #dcecff;
-    font-size: 14px;
+    color: #d4e5f8;
+    font-size: 13px;
     line-height: 158%;
 }
 QLabel#chatAnswerBody {
-    color: #f1f7ff;
-    font-size: 15px;
-    line-height: 162%;
+    color: #e9f3ff;
+    font-size: 13px;
+    line-height: 160%;
 }
 QLabel#chatSectionLabel {
-    color: rgba(212, 232, 255, 0.82);
-    font-size: 11px;
+    color: rgba(212, 232, 255, 0.68);
+    font-size: 10px;
     font-weight: 800;
-    letter-spacing: 0.8px;
+    letter-spacing: 1.8px;
     text-transform: uppercase;
 }
 QLabel#chatImageHero {
     background: rgba(3, 10, 24, 0.88);
-    border: 1px solid rgba(155, 210, 255, 0.18);
-    border-radius: 20px;
+    border: 1px solid rgba(155, 210, 255, 0.14);
+    border-radius: 18px;
     color: #c7d9ef;
-    padding: 12px;
+    padding: 10px;
 }
 QLabel#chatImageHero[flash="true"] {
     border-color: rgba(214, 240, 255, 0.34);

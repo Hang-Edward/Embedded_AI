@@ -150,8 +150,8 @@ MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent), connection_(config_, this) {
     config_.load();
     setWindowTitle(QStringLiteral("Embedded AI Reality Bridge"));
-    resize(1380, 920);
-    setMinimumSize(1040, 720);
+    resize(1540, 980);
+    setMinimumSize(1240, 820);
     qApp->setStyleSheet(Theme::styleSheet());
     buildUi();
 
@@ -194,7 +194,7 @@ void MainWindow::buildUi() {
 void MainWindow::buildSidebar(QHBoxLayout* root) {
     sidebar_ = new GlassSurface(GlassSurface::Tone::Sidebar, central_);
     sidebar_->setObjectName(QStringLiteral("sidebar"));
-    sidebar_->setFixedWidth(280);
+    sidebar_->setFixedWidth(312);
     auto* side = new QVBoxLayout(sidebar_);
     side->setContentsMargins(18, 18, 18, 18);
     side->setSpacing(12);
@@ -256,8 +256,8 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
     auto* header = new GlassSurface(GlassSurface::Tone::Elevated, central_);
     header->setObjectName(QStringLiteral("glassHeader"));
     auto* layout = new QHBoxLayout(header);
-    layout->setContentsMargins(20, 16, 20, 16);
-    layout->setSpacing(14);
+    layout->setContentsMargins(22, 14, 22, 14);
+    layout->setSpacing(12);
 
     auto* titleWrap = new QWidget(header);
     auto* titleLayout = new QVBoxLayout(titleWrap);
@@ -299,7 +299,7 @@ void MainWindow::buildHeader(QVBoxLayout* rightSide) {
 void MainWindow::buildPages(QVBoxLayout* rightSide) {
     auto* contentRow = new QHBoxLayout();
     contentRow->setContentsMargins(0, 0, 0, 0);
-    contentRow->setSpacing(14);
+    contentRow->setSpacing(16);
 
     pageSurface_ = new GlassSurface(GlassSurface::Tone::Regular, central_);
     pageSurface_->setObjectName(QStringLiteral("mainContentSurface"));
@@ -329,7 +329,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
 
     statusSurface_ = new GlassSurface(GlassSurface::Tone::Elevated, central_);
     statusSurface_->setObjectName(QStringLiteral("statusColumn"));
-    statusSurface_->setFixedWidth(318);
+    statusSurface_->setFixedWidth(330);
     auto* statusSurfaceLayout = new QVBoxLayout(statusSurface_);
     statusSurfaceLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -348,7 +348,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     statusHost->setAutoFillBackground(false);
     auto* statusLayout = new QVBoxLayout(statusHost);
     statusLayout->setContentsMargins(18, 18, 18, 18);
-    statusLayout->setSpacing(12);
+    statusLayout->setSpacing(10);
 
     auto* statusHeader = new QWidget(statusSurface_);
     statusHeader->setObjectName(QStringLiteral("statusColumnHeader"));
@@ -367,7 +367,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
 
     auto* statusTitle = new QLabel(QStringLiteral("系统状态总览"), statusTextWrap);
     statusTitle->setObjectName(QStringLiteral("statusColumnTitle"));
-    auto* statusSubtitle = new QLabel(QStringLiteral("把连接、阶段与恢复建议收拢在这里，主舞台只保留当前对话。"), statusTextWrap);
+    auto* statusSubtitle = new QLabel(QStringLiteral("把链路、阶段与恢复建议收拢在这里，让主舞台只保留当前对话与结果。"), statusTextWrap);
     statusSubtitle->setObjectName(QStringLiteral("statusColumnSubtitle"));
     statusSubtitle->setWordWrap(true);
     statusSubtitle->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
@@ -380,15 +380,15 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     actionBanner_ = new QLabel(QStringLiteral("正在自动检测树莓派、服务、摄像头和日志..."), statusSurface_);
     actionBanner_->setObjectName(QStringLiteral("actionBanner"));
     actionBanner_->setWordWrap(true);
-    actionBanner_->setMargin(12);
-    actionBanner_->setMinimumHeight(50);
+    actionBanner_->setMargin(11);
+    actionBanner_->setMinimumHeight(46);
     actionBanner_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 
     healthHeadline_ = new QLabel(QStringLiteral("等待第一轮系统诊断结果"), statusSurface_);
     healthHeadline_->setObjectName(QStringLiteral("healthHeadline"));
     healthHeadline_->setWordWrap(true);
-    healthHeadline_->setMargin(12);
-    healthHeadline_->setMinimumHeight(58);
+    healthHeadline_->setMargin(11);
+    healthHeadline_->setMinimumHeight(54);
     healthHeadline_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 
     networkChip_ = new QLabel(statusSurface_);
@@ -400,14 +400,14 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     for (QLabel* chip : chips) {
         chip->setObjectName(QStringLiteral("metricChip"));
         chip->setWordWrap(true);
-        chip->setMargin(11);
-        chip->setMinimumHeight(58);
+        chip->setMargin(10);
+        chip->setMinimumHeight(54);
         chip->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     }
     nextActionCard_->setObjectName(QStringLiteral("statusActionCard"));
     nextActionCard_->setWordWrap(true);
-    nextActionCard_->setMargin(13);
-    nextActionCard_->setMinimumHeight(74);
+    nextActionCard_->setMargin(12);
+    nextActionCard_->setMinimumHeight(68);
     nextActionCard_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
 
     lanWarning_ = new QLabel(statusHost);
@@ -469,8 +469,8 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     statusScroll->setWidget(statusHost);
     statusSurfaceLayout->addWidget(statusScroll);
 
-    contentRow->addWidget(pageSurface_, 1);
-    contentRow->addWidget(statusSurface_);
+    contentRow->addWidget(pageSurface_, 14);
+    contentRow->addWidget(statusSurface_, 4);
     rightSide->addLayout(contentRow, 1);
     switchPage(QStringLiteral("chat"));
     startBeaconPulse();
@@ -618,12 +618,12 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
 
 void MainWindow::updateResponsiveMode() {
     const bool compact = width() < 1040;
-    sidebar_->setFixedWidth(compact ? 116 : 280);
+    sidebar_->setFixedWidth(compact ? 124 : 312);
     if (statusSurface_ != nullptr) {
-        statusSurface_->setFixedWidth(width() < 1240 ? 292 : 318);
+        statusSurface_->setFixedWidth(width() < 1380 ? 304 : 330);
     }
     for (auto it = navButtons_.begin(); it != navButtons_.end(); ++it) {
-        it.value()->setMinimumHeight(compact ? 72 : 86);
+        it.value()->setMinimumHeight(compact ? 74 : 92);
     }
 }
 

@@ -15,6 +15,7 @@
 #include <QLabel>
 #include <QPointer>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QPixmap>
 #include <QSizePolicy>
 #include <QStyle>
@@ -56,15 +57,15 @@ QString stageStatusText(const ConnectionState& state) {
 
 QString stageMetaText(const ConnectionState& state) {
     QStringList parts;
-    parts << QStringLiteral("文本主模型：DeepSeek V4 Flash");
-    parts << QStringLiteral("视觉模型：Qwen VL");
+    parts << QStringLiteral("文本：DeepSeek V4 Flash");
+    parts << QStringLiteral("视觉：Qwen VL");
     if (!state.activeHost.isEmpty()) {
-        parts << QStringLiteral("主机：%1").arg(state.activeHost);
+        parts << QStringLiteral("主机 %1").arg(state.activeHost);
     }
     if (!state.localFramePath.isEmpty()) {
-        parts << QStringLiteral("当前画面：已同步");
+        parts << QStringLiteral("画面已同步");
     } else {
-        parts << QStringLiteral("当前画面：等待同步");
+        parts << QStringLiteral("等待画面");
     }
     return parts.join(QStringLiteral("    ·    "));
 }
@@ -72,6 +73,26 @@ QString stageMetaText(const ConnectionState& state) {
 QString summaryOrFallback(const QString& text, const QString& fallback) {
     const QString trimmed = text.trimmed();
     return trimmed.isEmpty() ? fallback : trimmed;
+}
+
+QString normalizedPreviewText(QString text, int maxLength) {
+    text.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    text.replace(QRegularExpression(QStringLiteral("```[\\s\\S]*?```")), QStringLiteral(" 代码片段 "));
+    text.replace(QRegularExpression(QStringLiteral("`([^`]+)`")), QStringLiteral("\\1"));
+    text.replace(QRegularExpression(QStringLiteral("^[#>]+\\s*"), QRegularExpression::MultilineOption), QString());
+    text.replace(QRegularExpression(QStringLiteral("^\\s*[-*+]\\s+"), QRegularExpression::MultilineOption), QString());
+    text.replace(QRegularExpression(QStringLiteral("^\\s*\\d+[.)]\\s+"), QRegularExpression::MultilineOption), QString());
+    text.replace(QStringLiteral("$$"), QString());
+    text.replace(QStringLiteral("\\["), QString());
+    text.replace(QStringLiteral("\\]"), QString());
+    text.replace(QStringLiteral("\\("), QString());
+    text.replace(QStringLiteral("\\)"), QString());
+    text.replace(QRegularExpression(QStringLiteral("\\s+")), QStringLiteral(" "));
+    text = text.trimmed();
+    if (text.size() > maxLength) {
+        text = text.left(maxLength).trimmed() + QStringLiteral("...");
+    }
+    return text;
 }
 
 QPixmap loadHeroPixmap(const QString& imagePath) {
@@ -141,19 +162,23 @@ void setAnimatedLabelText(QLabel* label, const QString& text, bool richText = fa
 QString compactSummary(const QList<AgentUiMessage>& messages) {
     for (int index = messages.size() - 1; index >= 0; --index) {
         if (messages[index].role == QStringLiteral("assistant")) {
-            return summaryOrFallback(messages[index].rawText.left(220), QStringLiteral("等待 AI 回复。"));
+            return summaryOrFallback(
+                normalizedPreviewText(messages[index].rawText, 132),
+                QStringLiteral("等待 AI 回复。"));
         }
     }
-    return QStringLiteral("你现在可以在下方输入自然语言需求，让 DeepSeek 决策并回复。");
+    return QStringLiteral("你现在可以继续追问，让 DeepSeek 保持同一轮上下文。");
 }
 
 QString latestUserOverview(const QList<AgentUiMessage>& messages) {
     for (int index = messages.size() - 1; index >= 0; --index) {
         if (messages[index].role == QStringLiteral("user")) {
-            return summaryOrFallback(messages[index].rawText, QStringLiteral("等待输入。"));
+            return summaryOrFallback(
+                normalizedPreviewText(messages[index].rawText, 88),
+                QStringLiteral("等待输入。"));
         }
     }
-    return QStringLiteral("支持自由输入需求；勾选“结合当前画面”后，会先由 Qwen 识别图像，再交给 DeepSeek 回答。");
+    return QStringLiteral("支持自由输入；勾选“结合当前画面”后，会先由 Qwen 识别图像，再交给 DeepSeek 回答。");
 }
 
 QString jsonBase64(const QList<AgentUiMessage>& messages) {
@@ -192,7 +217,7 @@ QString htmlEscapedForScript(const QString& text) {
 } // namespace
 
 ChatPage::ChatPage(AppConfig& config, QWidget* parent)
-    : BasePage("实时对话", "现在这里是真正的 Agent 对话工作区：你输入需求，DeepSeek 负责推理与回复，Qwen 只做视觉观察。", parent)
+    : BasePage("实时对话", "这里是主工作台：输入需求，DeepSeek 负责推理与回复，Qwen 只负责视觉观察。", parent)
     , config_(config) {
     turnWatcher_ = new QFutureWatcher<AgentTurnResult>(this);
     QObject::connect(turnWatcher_, &QFutureWatcher<AgentTurnResult>::finished, this, [this]() {
@@ -240,8 +265,8 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     stagePanel->setObjectName("chatStagePanel");
     stagePanel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
     auto* stageLayout = new QVBoxLayout(stagePanel);
-    stageLayout->setContentsMargins(18, 16, 18, 16);
-    stageLayout->setSpacing(8);
+    stageLayout->setContentsMargins(18, 14, 18, 14);
+    stageLayout->setSpacing(6);
 
     stageTitle_ = new QLabel(QStringLiteral("Agent 对话已就绪"), stagePanel);
     stageTitle_->setObjectName("chatStageTitle");
@@ -249,7 +274,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     stageStatus_->setObjectName("chatStageStatus");
     stageStatus_->setWordWrap(true);
     stageStatus_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-    stageMeta_ = new QLabel(QStringLiteral("文本主模型：DeepSeek V4 Flash    ·    视觉模型：Qwen VL"), stagePanel);
+    stageMeta_ = new QLabel(QStringLiteral("文本：DeepSeek V4 Flash    ·    视觉：Qwen VL"), stagePanel);
     stageMeta_->setObjectName("chatStageMeta");
     stageMeta_->setWordWrap(true);
     stageMeta_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
@@ -258,21 +283,21 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     stageLayout->addWidget(stageStatus_);
     stageLayout->addWidget(stageMeta_);
 
-    sectionCaption_ = new QLabel(QStringLiteral("Conversation"), this);
+    sectionCaption_ = new QLabel(QStringLiteral("CONVERSATION STAGE"), this);
     sectionCaption_->setObjectName("chatSectionLabel");
 
     auto* conversationCard = new QWidget(this);
     conversationCard->setObjectName("chatConversationCard");
     conversationCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     auto* conversationLayout = new QVBoxLayout(conversationCard);
-    conversationLayout->setContentsMargins(18, 18, 18, 18);
-    conversationLayout->setSpacing(12);
+    conversationLayout->setContentsMargins(22, 20, 22, 18);
+    conversationLayout->setSpacing(16);
 
     conversationContainer_ = new QWidget(conversationCard);
     conversationContainer_->setObjectName("chatScroll");
     conversationContainer_->setFocusPolicy(Qt::StrongFocus);
     conversationContainer_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    conversationContainer_->setMinimumHeight(420);
+    conversationContainer_->setMinimumHeight(560);
     auto* conversationPlaceholderLayout = new QVBoxLayout(conversationContainer_);
     conversationPlaceholderLayout->setContentsMargins(0, 0, 0, 0);
     conversationPlaceholderLayout->setSpacing(0);
@@ -280,7 +305,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationWebView_ = new WebView2Widget(conversationContainer_);
     conversationWebView_->setObjectName("chatConversationWebView");
     conversationWebView_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    conversationWebView_->setMinimumHeight(420);
+    conversationWebView_->setMinimumHeight(560);
     QObject::connect(conversationWebView_, &WebView2Widget::initializationFailed, this, [this](const QString& reason) {
         appendUiMessage({QStringLiteral("system"),
                          QStringLiteral("聊天渲染器初始化失败"),
@@ -295,12 +320,12 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerCard->setObjectName("chatComposerCard");
     auto* composerLayout = new QVBoxLayout(composerCard);
     composerLayout->setContentsMargins(14, 14, 14, 14);
-    composerLayout->setSpacing(10);
+    composerLayout->setSpacing(8);
 
     composerEdit_ = new QTextEdit(composerCard);
     composerEdit_->setObjectName("chatComposerEdit");
     composerEdit_->setPlaceholderText(QStringLiteral("输入你的需求，例如：\n- 帮我总结当前画面\n- 请结合画面解释这道题\n- 根据我刚才的实验结果给出下一步建议"));
-    composerEdit_->setMinimumHeight(110);
+    composerEdit_->setMinimumHeight(96);
 
     auto* composerActions = new QHBoxLayout();
     composerActions->setContentsMargins(0, 0, 0, 0);
@@ -336,77 +361,9 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationLayout->addWidget(conversationContainer_, 1);
     conversationLayout->addWidget(composerCard, 0);
 
-    auto* rightWorkspace = new QWidget(this);
-    rightWorkspace->setObjectName("chatWorkspaceRight");
-    rightWorkspace->setMinimumWidth(360);
-    rightWorkspace->setMaximumWidth(430);
-    rightWorkspace->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-    auto* rightLayout = new QVBoxLayout(rightWorkspace);
-    rightLayout->setContentsMargins(0, 0, 0, 0);
-    rightLayout->setSpacing(12);
-
-    auto* visualCard = new QWidget(this);
-    visualCard->setObjectName("chatVisualCard");
-    visualCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-    auto* visualLayout = new QVBoxLayout(visualCard);
-    visualLayout->setContentsMargins(16, 16, 16, 16);
-    visualLayout->setSpacing(10);
-
-    auto* visualTitle = new QLabel(QStringLiteral("当前画面"), visualCard);
-    visualTitle->setObjectName("chatPanelTitle");
-    visualStatus_ = new QLabel(QStringLiteral("等待摄像头同步最新画面"), visualCard);
-    visualStatus_->setObjectName("chatPanelSubtle");
-    visualStatus_->setWordWrap(true);
-    visualStatus_->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-    visualFrame_ = new QLabel(QStringLiteral("当树莓派抓取到最新照片后，这里会展示大图预览。"), visualCard);
-    visualFrame_->setObjectName("chatImageHero");
-    visualFrame_->setAlignment(Qt::AlignCenter);
-    visualFrame_->setWordWrap(true);
-    visualFrame_->setMinimumSize(360, 250);
-    visualFrame_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    visualFrame_->setMinimumHeight(250);
-
-    visualLayout->addWidget(visualTitle);
-    visualLayout->addWidget(visualStatus_);
-    visualLayout->addWidget(visualFrame_, 1);
-
-    auto* overviewCard = new QWidget(this);
-    overviewCard->setObjectName("chatPanelCard");
-    overviewCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Minimum);
-    auto* overviewLayout = new QVBoxLayout(overviewCard);
-    overviewLayout->setContentsMargins(16, 16, 16, 16);
-    overviewLayout->setSpacing(10);
-    auto* overviewTitle = new QLabel(QStringLiteral("当前输入摘要"), overviewCard);
-    overviewTitle->setObjectName("chatPanelTitle");
-    userSummary_ = new QLabel(QStringLiteral("你现在可以在左侧输入需求。"), overviewCard);
-    userSummary_->setObjectName("chatPanelBody");
-    userSummary_->setWordWrap(true);
-    overviewLayout->addWidget(overviewTitle);
-    overviewLayout->addWidget(userSummary_);
-
-    auto* answerCard = new QWidget(this);
-    answerCard->setObjectName("chatAnswerCard");
-    answerCard->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);
-    auto* answerLayout = new QVBoxLayout(answerCard);
-    answerLayout->setContentsMargins(18, 18, 18, 18);
-    answerLayout->setSpacing(8);
-    auto* answerTitle = new QLabel(QStringLiteral("最新回复摘要"), answerCard);
-    answerTitle->setObjectName("chatPanelTitle");
-    answerSummary_ = new QLabel(QStringLiteral("等待第一条 Agent 回复。"), answerCard);
-    answerSummary_->setObjectName("chatAnswerBody");
-    answerSummary_->setWordWrap(true);
-    answerLayout->addWidget(answerTitle);
-    answerLayout->addWidget(answerSummary_, 1);
-
     leftLayout->addWidget(stagePanel, 0);
     leftLayout->addWidget(conversationCard, 1);
-
-    rightLayout->addWidget(visualCard, 7);
-    rightLayout->addWidget(overviewCard, 3);
-    rightLayout->addWidget(answerCard, 4);
-
-    workspaceLayout->addWidget(leftWorkspace, 9);
-    workspaceLayout->addWidget(rightWorkspace, 5);
+    workspaceLayout->addWidget(leftWorkspace, 1);
 
     bodyLayout()->addWidget(workspaceRow, 1);
     appendDemoConversation();
@@ -442,14 +399,21 @@ void ChatPage::updateStagePanel(const ConnectionState& state) {
 }
 
 void ChatPage::updateOverviewPanels(const ConnectionState& state) {
-    setAnimatedLabelText(userSummary_, latestUserOverview(uiMessages_), false, 230);
-    setAnimatedLabelText(answerSummary_, compactSummary(uiMessages_), false, 230);
+    if (userSummary_ != nullptr) {
+        setAnimatedLabelText(userSummary_, latestUserOverview(uiMessages_), false, 230);
+    }
+    if (answerSummary_ != nullptr) {
+        setAnimatedLabelText(answerSummary_, compactSummary(uiMessages_), false, 230);
+    }
 
+    if (visualFrame_ == nullptr || visualStatus_ == nullptr) {
+        return;
+    }
     const QString imagePath = state.localFramePath;
     const QPixmap pixmap = loadHeroPixmap(imagePath);
     const QString oldKey = visualFrame_->property("contentKey").toString();
     if (!pixmap.isNull()) {
-        visualFrame_->setPixmap(pixmap.scaled(620, 360, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        visualFrame_->setPixmap(pixmap.scaled(560, 340, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         visualFrame_->setProperty("contentKey", imagePath);
         setAnimatedLabelText(visualStatus_, QStringLiteral("最新画面已同步。勾选“结合当前画面”后，Qwen 会先读取这张图。"), false, 220);
     } else if (!imagePath.isEmpty()) {
@@ -515,7 +479,7 @@ __KATEX_CSS__
     .conversation {
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 20px;
       width: 100%;
     }
     .message {
@@ -528,8 +492,8 @@ __KATEX_CSS__
       justify-content: flex-end;
     }
     .message.user .avatar { order: 2; }
-    .message.user .bubble { order: 1; max-width: 72%; background: var(--bubble-user); }
-    .message.assistant .bubble { max-width: 94%; background: var(--bubble-ai); }
+    .message.user .bubble { order: 1; max-width: 68%; background: var(--bubble-user); }
+    .message.assistant .bubble { max-width: 88%; background: var(--bubble-ai); }
     .message.system .bubble { max-width: 90%; background: var(--bubble-system); }
     .avatar {
       flex: 0 0 36px;
@@ -551,7 +515,7 @@ __KATEX_CSS__
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 18px 20px;
-      min-width: 260px;
+      min-width: 220px;
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
@@ -565,7 +529,7 @@ __KATEX_CSS__
     .body {
       color: var(--text);
       font-size: 14px;
-      line-height: 1.72;
+      line-height: 1.76;
       word-break: break-word;
       overflow-wrap: anywhere;
     }
@@ -617,11 +581,11 @@ __KATEX_CSS__
       display: block;
     }
     .body .katex {
-      font-size: 1.02em;
+      font-size: 0.98em;
       color: var(--text);
     }
     .body .katex-display {
-      margin: 0.55em 0;
+      margin: 0.45em 0 0.62em 0;
       max-width: 100%;
       overflow-x: auto;
       overflow-y: hidden;

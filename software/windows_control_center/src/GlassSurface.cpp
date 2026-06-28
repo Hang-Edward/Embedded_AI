@@ -137,30 +137,30 @@ void LiquidNavButton::paintEvent(QPaintEvent* event) {
         textLeft = glyphRect.right() + 14.0;
     }
 
-    const QRectF textBounds = bounds.adjusted(textLeft - bounds.left(), 11.0, -18.0, -12.0);
+    const QRectF textBounds = bounds.adjusted(textLeft - bounds.left(), 12.0, -16.0, -10.0);
     painter.setPen(QColor(226 + static_cast<int>(energy * 29),
                           238 + static_cast<int>(energy * 17), 255));
 
     QFont titleFont = font();
     titleFont.setWeight(active > 0.45 ? QFont::DemiBold : QFont::Medium);
-    titleFont.setPointSizeF(titleFont.pointSizeF() + 0.5);
+    titleFont.setPointSizeF(titleFont.pointSizeF() + 0.1);
     painter.setFont(titleFont);
 
     if (subtitle.isEmpty()) {
         painter.drawText(textBounds, Qt::AlignVCenter | Qt::AlignLeft, text());
     } else {
-        const QRectF titleRect(textBounds.left(), textBounds.top(), textBounds.width(), textBounds.height() * 0.42);
-        painter.drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter, text());
+        const QRectF titleRect(textBounds.left(), textBounds.top(), textBounds.width(), textBounds.height() * 0.38);
+        painter.drawText(titleRect, Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine, text());
 
         QFont subtitleFont = font();
-        subtitleFont.setPointSizeF(qMax(9.0, subtitleFont.pointSizeF() - 1.5));
+        subtitleFont.setPointSizeF(qMax(8.8, subtitleFont.pointSizeF() - 1.7));
         subtitleFont.setWeight(QFont::Medium);
         painter.setFont(subtitleFont);
         painter.setPen(QColor(182 + static_cast<int>(energy * 20),
                               206 + static_cast<int>(energy * 14),
                               232 + static_cast<int>(energy * 12), 228));
-        const QRectF subtitleRect(textBounds.left(), textBounds.top() + textBounds.height() * 0.40,
-                                  textBounds.width(), textBounds.height() * 0.54);
+        const QRectF subtitleRect(textBounds.left(), textBounds.top() + textBounds.height() * 0.36,
+                                  textBounds.width(), textBounds.height() * 0.58);
         painter.drawText(subtitleRect, Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, subtitle);
     }
 }
