@@ -3,6 +3,7 @@
 #include "AppConfig.h"
 #include "BasePage.h"
 #include "ConnectionState.h"
+#include "MarkdownLatexRenderer.h"
 
 #include <QFutureWatcher>
 #include <QList>
@@ -11,7 +12,8 @@ class QTextEdit;
 class QLabel;
 class QWidget;
 class QPushButton;
-class WebView2Widget;
+class QScrollArea;
+class QVBoxLayout;
 class GlassCheckBox;
 
 struct AgentUiMessage {
@@ -43,7 +45,6 @@ private:
     void updateStagePanel(const ConnectionState& state);
     void updateOverviewPanels(const ConnectionState& state);
     void rebuildConversation();
-    QString buildConversationHtml() const;
     void appendUiMessage(const AgentUiMessage& message);
     void sendPrompt();
     AgentTurnResult runAgentTurn(const QString& userPrompt,
@@ -53,6 +54,7 @@ private:
     void setChatBusy(bool busy, const QString& hint);
 
     AppConfig& config_;
+    MarkdownLatexRenderer renderer_;
     ConnectionState latestState_;
     QList<AgentUiMessage> uiMessages_;
     QFutureWatcher<AgentTurnResult>* turnWatcher_ = nullptr;
@@ -65,7 +67,9 @@ private:
     QLabel* visualFrame_ = nullptr;
     QLabel* answerSummary_ = nullptr;
     QWidget* conversationContainer_ = nullptr;
-    WebView2Widget* conversationWebView_ = nullptr;
+    QScrollArea* conversationScroll_ = nullptr;
+    QWidget* conversationHost_ = nullptr;
+    QVBoxLayout* conversationMessagesLayout_ = nullptr;
     QTextEdit* composerEdit_ = nullptr;
     QPushButton* sendButton_ = nullptr;
     QPushButton* clearButton_ = nullptr;

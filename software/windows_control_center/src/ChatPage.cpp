@@ -1,9 +1,10 @@
 #include "ChatPage.h"
 
+#include "ChatMessageWidget.h"
 #include "DeepSeekChatClient.h"
 #include "GlassSurface.h"
+#include "MarkdownLatexRenderer.h"
 #include "QwenVisionQtClient.h"
-#include "WebView2Widget.h"
 
 #include <QFrame>
 #include <QFile>
@@ -17,11 +18,12 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QPixmap>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QSizePolicy>
 #include <QStyle>
 #include <QTextEdit>
 #include <QTimer>
-#include <QUrl>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QtConcurrent>
@@ -181,44 +183,12 @@ QString latestUserOverview(const QList<AgentUiMessage>& messages) {
     return QStringLiteral("支持自由输入；勾选“结合当前画面”后，会先由 Qwen 识别图像，再交给 DeepSeek 回答。");
 }
 
-QString jsonBase64(const QList<AgentUiMessage>& messages) {
-    QJsonArray array;
-    for (const AgentUiMessage& message : messages) {
-        array.append(QJsonObject {
-            {"role", message.role},
-            {"title", message.title},
-            {"body", message.rawText},
-            {"imagePath", message.imagePath}
-        });
-    }
-    return QString::fromLatin1(QJsonDocument(array).toJson(QJsonDocument::Compact).toBase64());
-}
-
-QString loadResourceText(const QString& resourcePath) {
-    QFile file(resourcePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        return {};
-    }
-    return QString::fromUtf8(file.readAll());
-}
-
-QString htmlEscapedForStyle(const QString& text) {
-    QString escaped = text;
-    escaped.replace(QStringLiteral("</style>"), QStringLiteral("<\\/style>"), Qt::CaseInsensitive);
-    return escaped;
-}
-
-QString htmlEscapedForScript(const QString& text) {
-    QString escaped = text;
-    escaped.replace(QStringLiteral("</script>"), QStringLiteral("<\\/script>"), Qt::CaseInsensitive);
-    return escaped;
-}
-
 } // namespace
 
 ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     : BasePage("实时对话", "这里是主工作台：输入需求，DeepSeek 负责推理与回复，Qwen 只负责视觉观察。", parent)
-    , config_(config) {
+    , config_(config)
+    , renderer_(config) {
     titleLabel()->setProperty("chatPage", true);
     titleLabel()->style()->unpolish(titleLabel());
     titleLabel()->style()->polish(titleLabel());
@@ -295,13 +265,17 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
 
     auto* conversationCard = new QWidget(this);
     conversationCard->setObjectName("chatConversationCard");
+    conversationCard->setAttribute(Qt::WA_TranslucentBackground, true);
     conversationCard->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     auto* conversationLayout = new QVBoxLayout(conversationCard);
     conversationLayout->setContentsMargins(20, 18, 20, 16);
     conversationLayout->setSpacing(14);
 
     conversationContainer_ = new QWidget(conversationCard);
-    conversationContainer_->setObjectName("chatScroll");
+    conversationContainer_->setObjectName("chatConversationViewport");
+    conversationContainer_->setAttribute(Qt::WA_TranslucentBackground, true);
+    conversationContainer_->setAutoFillBackground(false);
+    conversationContainer_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     conversationContainer_->setFocusPolicy(Qt::StrongFocus);
     conversationContainer_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     conversationContainer_->setMinimumHeight(650);
@@ -309,19 +283,34 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationPlaceholderLayout->setContentsMargins(0, 0, 0, 0);
     conversationPlaceholderLayout->setSpacing(0);
 
-    conversationWebView_ = new WebView2Widget(conversationContainer_);
-    conversationWebView_->setObjectName("chatConversationWebView");
-    conversationWebView_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    conversationWebView_->setMinimumHeight(650);
-    QObject::connect(conversationWebView_, &WebView2Widget::initializationFailed, this, [this](const QString& reason) {
-        appendUiMessage({QStringLiteral("system"),
-                         QStringLiteral("聊天渲染器初始化失败"),
-                         reason,
-                         QString(),
-                         QString()});
-        setAnimatedLabelText(stageStatus_, QStringLiteral("聊天渲染器初始化失败：%1").arg(reason), false, 220);
-    });
-    conversationPlaceholderLayout->addWidget(conversationWebView_, 1);
+    conversationScroll_ = new QScrollArea(conversationContainer_);
+    conversationScroll_->setObjectName("chatScroll");
+    conversationScroll_->setFrameShape(QFrame::NoFrame);
+    conversationScroll_->setWidgetResizable(true);
+    conversationScroll_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    conversationScroll_->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    conversationScroll_->setAttribute(Qt::WA_TranslucentBackground, true);
+    conversationScroll_->setAutoFillBackground(false);
+    conversationScroll_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    conversationScroll_->viewport()->setAutoFillBackground(false);
+    conversationScroll_->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
+    conversationScroll_->viewport()->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    conversationScroll_->setMinimumHeight(650);
+
+    conversationHost_ = new QWidget(conversationScroll_);
+    conversationHost_->setObjectName("chatConversationHost");
+    conversationHost_->setAttribute(Qt::WA_TranslucentBackground, true);
+    conversationHost_->setAutoFillBackground(false);
+    conversationHost_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    conversationHost_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+
+    conversationMessagesLayout_ = new QVBoxLayout(conversationHost_);
+    conversationMessagesLayout_->setContentsMargins(0, 0, 0, 0);
+    conversationMessagesLayout_->setSpacing(18);
+    conversationMessagesLayout_->addStretch(1);
+
+    conversationScroll_->setWidget(conversationHost_);
+    conversationPlaceholderLayout->addWidget(conversationScroll_, 1);
 
     auto* composerCard = new QWidget(this);
     composerCard->setObjectName("chatComposerCard");
@@ -400,7 +389,16 @@ void ChatPage::setLatestSession(const ConnectionState& state) {
 }
 
 void ChatPage::clearMessages() {
-    Q_UNUSED(this)
+    if (conversationMessagesLayout_ == nullptr) {
+        return;
+    }
+
+    while (QLayoutItem* item = conversationMessagesLayout_->takeAt(0)) {
+        if (QWidget* widget = item->widget()) {
+            widget->deleteLater();
+        }
+        delete item;
+    }
 }
 
 void ChatPage::updateStagePanel(const ConnectionState& state) {
@@ -444,328 +442,54 @@ void ChatPage::updateOverviewPanels(const ConnectionState& state) {
 }
 
 void ChatPage::rebuildConversation() {
-    if (conversationWebView_ != nullptr) {
-        conversationWebView_->setHtmlContent(buildConversationHtml());
-    }
-}
-
-QString ChatPage::buildConversationHtml() const {
-    const QString payload = jsonBase64(uiMessages_);
-    const QString markedJs = htmlEscapedForScript(loadResourceText(QStringLiteral(":/assets/web/marked.min.js")));
-    const QString katexJs = htmlEscapedForScript(loadResourceText(QStringLiteral(":/assets/web/katex.min.js")));
-    const QString katexAutoRenderJs = htmlEscapedForScript(loadResourceText(QStringLiteral(":/assets/web/auto-render.min.js")));
-    const QString katexCss = htmlEscapedForStyle(loadResourceText(QStringLiteral(":/assets/web/katex.min.css")));
-    return QStringLiteral(R"HTML(
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-__KATEX_CSS__
-    :root {
-      color-scheme: dark;
-      --bg: rgba(31, 61, 115, 0.34);
-      --bubble-ai: rgba(8, 18, 38, 0.46);
-      --bubble-user: rgba(18, 34, 70, 0.54);
-      --bubble-system: rgba(10, 22, 42, 0.44);
-      --border: rgba(170, 220, 255, 0.16);
-      --text: #eaf4ff;
-      --muted: #b9d4f2;
-      --accent: #8ec5ff;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: linear-gradient(180deg, rgba(31, 61, 115, 0.34) 0%, rgba(20, 42, 84, 0.28) 100%);
-      background-repeat: no-repeat;
-      background-size: 100% 100%;
-      background-attachment: fixed;
-      color: var(--text);
-      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
-      overflow-x: hidden;
-      scroll-behavior: smooth;
-      min-height: 100%;
-    }
-    body {
-      padding: 18px 20px 26px 20px;
-      border-radius: 22px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
-      min-height: calc(100vh - 44px);
-    }
-    .conversation {
-      display: flex;
-      flex-direction: column;
-      gap: 22px;
-      width: 100%;
-      max-width: 1180px;
-      margin: 0 auto 0 0;
-    }
-    .message {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      width: 100%;
-    }
-    .message.user {
-      justify-content: flex-end;
-    }
-    .message.assistant,
-    .message.system {
-      justify-content: flex-start;
-    }
-    .message.user .avatar { order: 2; }
-    .message.user .bubble { order: 1; max-width: 62%; background: var(--bubble-user); }
-    .message.assistant .bubble { max-width: 80%; background: var(--bubble-ai); }
-    .message.system .bubble { max-width: 76%; background: var(--bubble-system); }
-    .avatar {
-      flex: 0 0 36px;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      color: #fff;
-      background: rgba(103,126,255,0.35);
-      border: 1px solid rgba(211,223,255,0.30);
-      user-select: none;
-    }
-    .message.user .avatar { background: rgba(75,150,255,0.50); }
-    .message.system .avatar { background: rgba(105,125,154,0.28); color: #d9e6f3; }
-    .bubble {
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 18px 22px;
-      min-width: 220px;
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 16px 38px rgba(2, 8, 22, 0.12);
-    }
-    .title {
-      font-size: 15px;
-      font-weight: 800;
-      margin-bottom: 10px;
-      color: #ffffff;
-    }
-    .body {
-      color: var(--text);
-      font-size: 15px;
-      line-height: 1.78;
-      word-break: break-word;
-      overflow-wrap: anywhere;
-    }
-    .body h1, .body h2, .body h3, .body h4 {
-      margin: 0.55em 0 0.38em 0;
-      line-height: 1.22;
-    }
-    .body h1 { font-size: 1.45em; }
-    .body h2 { font-size: 1.28em; }
-    .body h3 { font-size: 1.14em; }
-    .body p { margin: 0.42em 0; }
-    .body ul, .body ol { margin: 0.4em 0 0.55em 1.3em; }
-    .body li { margin: 0.22em 0; }
-    .body code {
-      background: rgba(255,255,255,0.06);
-      padding: 2px 6px;
-      border-radius: 6px;
-      font-family: Consolas, monospace;
-    }
-    .body pre {
-      background: rgba(5,14,32,0.88);
-      padding: 12px;
-      border-radius: 12px;
-      overflow-x: auto;
-    }
-    .body blockquote {
-      border-left: 3px solid rgba(118,184,255,0.55);
-      margin: 0.5em 0;
-      padding-left: 12px;
-      color: #c8ddf5;
-    }
-    .body table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0.7em 0;
-      font-size: 13px;
-    }
-    .body th, .body td {
-      border: 1px solid rgba(160,210,255,0.18);
-      padding: 8px 10px;
-      text-align: left;
-      vertical-align: top;
-    }
-    .message-image {
-      margin-top: 12px;
-      max-width: min(560px, 100%);
-      border-radius: 16px;
-      border: 1px solid rgba(155, 210, 255, 0.22);
-      display: block;
-    }
-    .body .katex {
-      font-size: 0.98em;
-      color: var(--text);
-    }
-    .body .katex-display {
-      margin: 0.42em 0 0.58em 0;
-      max-width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
-      padding: 0.08em 0 0.18em 0;
-    }
-    .body .katex-display > .katex {
-      display: inline-block;
-      text-align: left;
-    }
-    .body hr {
-      border: none;
-      border-top: 1px solid rgba(170,220,255,0.20);
-      margin: 1em 0;
-    }
-    ::-webkit-scrollbar { width: 10px; height: 10px; }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(126, 181, 255, 0.42);
-      border-radius: 999px;
-    }
-    ::-webkit-scrollbar-track { background: transparent; }
-  </style>
-  <script>__MARKED_JS__</script>
-  <script>__KATEX_JS__</script>
-  <script>__KATEX_AUTORENDER_JS__</script>
-</head>
-<body>
-  <div id="conversation" class="conversation"></div>
-  <script>
-    function decodePayload(base64) {
-      const binary = atob(base64);
-      const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-      return JSON.parse(new TextDecoder().decode(bytes));
+    if (conversationMessagesLayout_ == nullptr) {
+        return;
     }
 
-    function escapeHtml(text) {
-      return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    clearMessages();
+
+    for (const AgentUiMessage& message : uiMessages_) {
+        ChatMessageWidget::Role role = ChatMessageWidget::Role::System;
+        if (message.role == QStringLiteral("user")) {
+            role = ChatMessageWidget::Role::User;
+        } else if (message.role == QStringLiteral("assistant")) {
+            role = ChatMessageWidget::Role::Assistant;
+        }
+
+        auto* widget = new ChatMessageWidget(role, conversationHost_);
+        widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        widget->setRichMessage(message.title,
+                               message.htmlText.isEmpty()
+                                   ? message.rawText.toHtmlEscaped().replace("\n", "<br/>")
+                                   : message.htmlText,
+                               message.imagePath);
+        conversationMessagesLayout_->addWidget(widget, 0, Qt::AlignTop);
     }
 
-    function avatarText(role) {
-      if (role === 'user') return '我';
-      if (role === 'assistant') return 'AI';
-      return '系统';
-    }
+    conversationMessagesLayout_->addStretch(1);
 
-    function protectMath(markdown) {
-      const placeholders = [];
-      let output = markdown || '';
-
-      const store = (raw) => {
-        const token = `EMBEDDED_AI_MATH_${placeholders.length}_TOKEN`;
-        placeholders.push({ token, raw });
-        return token;
-      };
-
-      output = output.replace(/\$\$([\s\S]+?)\$\$/g, (_, body) => store(`$$${body}$$`));
-      output = output.replace(/\\\[([\s\S]+?)\\\]/g, (_, body) => store(`\\[${body}\\]`));
-      output = output.replace(/\\\(([\s\S]+?)\\\)/g, (_, body) => store(`\\(${body}\\)`));
-      output = output.replace(/(^|[^\\])\$([^\n$]+?)\$/g, (_, prefix, body) => `${prefix}${store(`$${body}$`)}`);
-
-      return { text: output, placeholders };
-    }
-
-    function normalizeAssistantLatex(markdown) {
-      if (!markdown) {
-        return '';
-      }
-
-      // 中文注释：DeepSeek 有时会把 LaTeX 里的反斜杠再次转义成双反斜杠，
-      // 比如 \\(、\\frac、\\sum。这里先把公式常见写法恢复成单反斜杠，
-      // 再交给 Markdown 与 KaTeX 处理。
-      return markdown
-        .replace(/\\\\(?=[()[\]{}])/g, '\\')
-        .replace(/\\\\(?=[A-Za-z])/g, '\\');
-    }
-
-    function restoreMath(html, placeholders) {
-      let output = html;
-      placeholders.forEach((item) => {
-        output = output.split(item.token).join(item.raw);
-      });
-      return output;
-    }
-
-    marked.setOptions({
-      gfm: true,
-      breaks: true,
-      headerIds: false,
-      mangle: false
-    });
-
-    function renderBody(role, body) {
-      if (role === 'assistant') {
-        const normalizedBody = normalizeAssistantLatex(body || '');
-        const protectedMath = protectMath(normalizedBody);
-        const markdownHtml = marked.parse(protectedMath.text || '');
-        return restoreMath(markdownHtml, protectedMath.placeholders);
-      }
-      return '<p>' + escapeHtml(body || '').replace(/\n/g, '<br/>') + '</p>';
-    }
-
-    function renderConversation() {
-      const payload = decodePayload('__PAYLOAD_BASE64__');
-      const root = document.getElementById('conversation');
-      root.innerHTML = payload.map((message) => {
-        const imageHtml = message.imagePath
-          ? '<img class="message-image" src="' + encodeURI('file:///' + message.imagePath.replace(/\\/g, '/')) + '" />'
-          : '';
-        return `
-          <section class="message ${message.role}">
-            <div class="avatar">${avatarText(message.role)}</div>
-            <div class="bubble">
-              <div class="title">${escapeHtml(message.title || '')}</div>
-              <div class="body">${renderBody(message.role, message.body || '')}</div>
-              ${imageHtml}
-            </div>
-          </section>`;
-      }).join('');
-
-      if (window.renderMathInElement) {
-        window.renderMathInElement(root, {
-          throwOnError: false,
-          strict: 'ignore',
-          delimiters: [
-            { left: '$$', right: '$$', display: true },
-            { left: '\\[', right: '\\]', display: true },
-            { left: '\\(', right: '\\)', display: false },
-            { left: '$', right: '$', display: false }
-          ]
+    if (conversationScroll_ != nullptr && conversationScroll_->verticalScrollBar() != nullptr) {
+        QPointer<QScrollArea> guard(conversationScroll_);
+        QTimer::singleShot(0, this, [guard]() {
+            if (guard == nullptr || guard->verticalScrollBar() == nullptr) {
+                return;
+            }
+            guard->verticalScrollBar()->setValue(guard->verticalScrollBar()->maximum());
         });
-      }
-      window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' });
     }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', renderConversation);
-    } else {
-      renderConversation();
-    }
-  </script>
-</body>
-</html>
-)HTML")
-        .replace(QStringLiteral("__PAYLOAD_BASE64__"), payload)
-        .replace(QStringLiteral("__MARKED_JS__"), markedJs)
-        .replace(QStringLiteral("__KATEX_JS__"), katexJs)
-        .replace(QStringLiteral("__KATEX_AUTORENDER_JS__"), katexAutoRenderJs)
-        .replace(QStringLiteral("__KATEX_CSS__"), katexCss);
 }
 
 void ChatPage::appendUiMessage(const AgentUiMessage& message) {
-    uiMessages_.append(message);
+    AgentUiMessage normalized = message;
+    if (normalized.role == QStringLiteral("assistant")) {
+        normalized.htmlText = normalized.htmlText.isEmpty()
+            ? renderer_.renderToHtml(normalized.rawText)
+            : normalized.htmlText;
+    } else if (normalized.htmlText.isEmpty()) {
+        normalized.htmlText = normalized.rawText.toHtmlEscaped().replace("\n", "<br/>");
+    }
+
+    uiMessages_.append(normalized);
     rebuildConversation();
     updateOverviewPanels(latestState_);
 }

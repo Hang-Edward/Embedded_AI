@@ -359,9 +359,14 @@ QWidget#chatVisualCard {
     border-radius: 20px;
 }
 QWidget#chatConversationCard {
-    background: rgba(22, 46, 90, 0.20);
+    background: rgba(22, 46, 90, 0.10);
     border: 1px solid rgba(190, 227, 255, 0.13);
     border-radius: 26px;
+}
+QWidget#chatScroll,
+QWidget#chatConversationWebView {
+    background: transparent;
+    border: none;
 }
 QWidget#chatComposerCard {
     background: rgba(20, 42, 82, 0.30);
