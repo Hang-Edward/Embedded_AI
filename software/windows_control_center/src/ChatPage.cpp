@@ -5,20 +5,16 @@
 #include "GlassSurface.h"
 #include "MarkdownLatexRenderer.h"
 #include "QwenVisionQtClient.h"
+#include "SmoothScrollArea.h"
 
 #include <QFrame>
-#include <QFile>
 #include <QHBoxLayout>
 #include <QImageReader>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QLabel>
 #include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QPixmap>
-#include <QScrollArea>
 #include <QScrollBar>
 #include <QSizePolicy>
 #include <QStyle>
@@ -283,7 +279,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationPlaceholderLayout->setContentsMargins(0, 0, 0, 0);
     conversationPlaceholderLayout->setSpacing(0);
 
-    conversationScroll_ = new QScrollArea(conversationContainer_);
+    conversationScroll_ = new SmoothScrollArea(conversationContainer_);
     conversationScroll_->setObjectName("chatScroll");
     conversationScroll_->setFrameShape(QFrame::NoFrame);
     conversationScroll_->setWidgetResizable(true);
@@ -395,7 +391,7 @@ void ChatPage::clearMessages() {
 
     while (QLayoutItem* item = conversationMessagesLayout_->takeAt(0)) {
         if (QWidget* widget = item->widget()) {
-            widget->deleteLater();
+            delete widget;
         }
         delete item;
     }
@@ -469,7 +465,7 @@ void ChatPage::rebuildConversation() {
     conversationMessagesLayout_->addStretch(1);
 
     if (conversationScroll_ != nullptr && conversationScroll_->verticalScrollBar() != nullptr) {
-        QPointer<QScrollArea> guard(conversationScroll_);
+        QPointer<SmoothScrollArea> guard(conversationScroll_);
         QTimer::singleShot(0, this, [guard]() {
             if (guard == nullptr || guard->verticalScrollBar() == nullptr) {
                 return;
@@ -497,10 +493,20 @@ void ChatPage::appendUiMessage(const AgentUiMessage& message) {
 void ChatPage::sendPrompt() {
     const QString userPrompt = composerEdit_->toPlainText().trimmed();
     if (userPrompt.isEmpty()) {
+        appendUiMessage({QStringLiteral("system"),
+                         QStringLiteral("输入为空"),
+                         QStringLiteral("请输入一个具体需求，再发送给 Agent。"),
+                         QString(),
+                         QString()});
         setChatBusy(false, QStringLiteral("请输入一个具体需求，再发送给 Agent。"));
         return;
     }
     if (turnWatcher_->isRunning()) {
+        appendUiMessage({QStringLiteral("system"),
+                         QStringLiteral("任务仍在进行"),
+                         QStringLiteral("上一轮还在处理中，请等待当前回复完成后再发送新需求。"),
+                         QString(),
+                         QString()});
         setChatBusy(true, QStringLiteral("上一轮还在处理中，请稍等。"));
         return;
     }
@@ -513,6 +519,20 @@ void ChatPage::sendPrompt() {
                      userPrompt,
                      QString(),
                      imagePath});
+
+    if (includeScene) {
+        appendUiMessage({QStringLiteral("system"),
+                         QStringLiteral("任务已接收"),
+                         QStringLiteral("已进入多模态流程：先读取当前画面，再交给 DeepSeek 做最终推理。"),
+                         QString(),
+                         QString()});
+    } else {
+        appendUiMessage({QStringLiteral("system"),
+                         QStringLiteral("任务已接收"),
+                         QStringLiteral("已进入纯文本流程：直接调用 DeepSeek 生成最终回答。"),
+                         QString(),
+                         QString()});
+    }
 
     composerEdit_->clear();
     setChatBusy(true, includeScene
@@ -538,7 +558,7 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
     if (includeScene) {
         if (result.userImagePath.trimmed().isEmpty()) {
             result.success = false;
-            result.errorText = QStringLiteral("你勾选了“结合当前画面”，但当前还没有同步到最新图片。");
+            result.errorText = QStringLiteral("你勾选了“结合当前画面”，但当前还没有同步到最新图片，无法启动视觉识别流程。");
             return result;
         }
 
@@ -546,7 +566,7 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
         const VisionRecognitionResult vision = qwenClient.recognizeForPrompt(result.userImagePath, userPrompt);
         if (!vision.success) {
             result.success = false;
-            result.errorText = vision.message;
+            result.errorText = QStringLiteral("Qwen 视觉识别失败：%1").arg(vision.message);
             return result;
         }
         result.visionSummary = vision.summary;
@@ -567,7 +587,7 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
     const ChatCompletionResult completion = deepSeekClient.complete(history, visualContext);
     if (!completion.success) {
         result.success = false;
-        result.errorText = completion.message;
+        result.errorText = QStringLiteral("DeepSeek 回复失败：%1").arg(completion.message);
         return result;
     }
 

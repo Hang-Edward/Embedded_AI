@@ -12,9 +12,9 @@ class QTextEdit;
 class QLabel;
 class QWidget;
 class QPushButton;
-class QScrollArea;
 class QVBoxLayout;
 class GlassCheckBox;
+class SmoothScrollArea;
 
 struct AgentUiMessage {
     QString role;
@@ -67,7 +67,7 @@ private:
     QLabel* visualFrame_ = nullptr;
     QLabel* answerSummary_ = nullptr;
     QWidget* conversationContainer_ = nullptr;
-    QScrollArea* conversationScroll_ = nullptr;
+    SmoothScrollArea* conversationScroll_ = nullptr;
     QWidget* conversationHost_ = nullptr;
     QVBoxLayout* conversationMessagesLayout_ = nullptr;
     QTextEdit* composerEdit_ = nullptr;

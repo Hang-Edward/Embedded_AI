@@ -3,29 +3,5 @@
         <file alias="liquid_space_wallpaper.png">assets/liquid_space_wallpaper.png</file>
         <file alias="app_icon.png">assets/app_icon.png</file>
         <file alias="checkmark.svg">assets/checkmark.svg</file>
-        <file alias="web/marked.min.js">assets/web/marked.min.js</file>
-        <file alias="web/katex.min.js">assets/web/katex.min.js</file>
-        <file alias="web/auto-render.min.js">assets/web/auto-render.min.js</file>
-        <file alias="web/katex.min.css">assets/web/katex.min.css</file>
-        <file alias="web/fonts/KaTeX_AMS-Regular.woff2">assets/web/fonts/KaTeX_AMS-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Caligraphic-Bold.woff2">assets/web/fonts/KaTeX_Caligraphic-Bold.woff2</file>
-        <file alias="web/fonts/KaTeX_Caligraphic-Regular.woff2">assets/web/fonts/KaTeX_Caligraphic-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Fraktur-Bold.woff2">assets/web/fonts/KaTeX_Fraktur-Bold.woff2</file>
-        <file alias="web/fonts/KaTeX_Fraktur-Regular.woff2">assets/web/fonts/KaTeX_Fraktur-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Main-Bold.woff2">assets/web/fonts/KaTeX_Main-Bold.woff2</file>
-        <file alias="web/fonts/KaTeX_Main-BoldItalic.woff2">assets/web/fonts/KaTeX_Main-BoldItalic.woff2</file>
-        <file alias="web/fonts/KaTeX_Main-Italic.woff2">assets/web/fonts/KaTeX_Main-Italic.woff2</file>
-        <file alias="web/fonts/KaTeX_Main-Regular.woff2">assets/web/fonts/KaTeX_Main-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Math-BoldItalic.woff2">assets/web/fonts/KaTeX_Math-BoldItalic.woff2</file>
-        <file alias="web/fonts/KaTeX_Math-Italic.woff2">assets/web/fonts/KaTeX_Math-Italic.woff2</file>
-        <file alias="web/fonts/KaTeX_SansSerif-Bold.woff2">assets/web/fonts/KaTeX_SansSerif-Bold.woff2</file>
-        <file alias="web/fonts/KaTeX_SansSerif-Italic.woff2">assets/web/fonts/KaTeX_SansSerif-Italic.woff2</file>
-        <file alias="web/fonts/KaTeX_SansSerif-Regular.woff2">assets/web/fonts/KaTeX_SansSerif-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Script-Regular.woff2">assets/web/fonts/KaTeX_Script-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Size1-Regular.woff2">assets/web/fonts/KaTeX_Size1-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Size2-Regular.woff2">assets/web/fonts/KaTeX_Size2-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Size3-Regular.woff2">assets/web/fonts/KaTeX_Size3-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Size4-Regular.woff2">assets/web/fonts/KaTeX_Size4-Regular.woff2</file>
-        <file alias="web/fonts/KaTeX_Typewriter-Regular.woff2">assets/web/fonts/KaTeX_Typewriter-Regular.woff2</file>
     </qresource>
 </RCC>

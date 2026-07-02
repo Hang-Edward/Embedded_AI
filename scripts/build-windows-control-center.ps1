@@ -12,7 +12,6 @@ $ucrtRoot = Join-Path $env:USERPROFILE "scoop\apps\msys2\current\ucrt64"
 $buildPath = Join-Path $projectRoot $BuildDir
 $distPath = Join-Path $projectRoot $DistDir
 $deployTool = Join-Path $ucrtBin "windeployqt6.exe"
-$webView2Loader = Join-Path $projectRoot "third_party\webview2\1.0.4022.49\build\native\x64\WebView2Loader.dll"
 
 function Convert-ToMsysPath {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -60,10 +59,10 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-if (-not (Test-Path $webView2Loader)) {
-    throw "WebView2 loader DLL was not found: $webView2Loader"
+$staleLegacyDll = Join-Path $distPath "WebView2Loader.dll"
+if (Test-Path $staleLegacyDll) {
+    Remove-Item -LiteralPath $staleLegacyDll -Force
 }
-Copy-Item $webView2Loader $distPath -Force
 
 # windeployqt handles Qt plugins, but MSYS2/MinGW runtime and plugin-side
 # dependencies still need to sit beside the executable for double-click launch.

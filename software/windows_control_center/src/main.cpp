@@ -9,16 +9,7 @@
 #include <QSplashScreen>
 #include <QVBoxLayout>
 
-#ifdef Q_OS_WIN
-#include <objbase.h>
-#endif
-
 int main(int argc, char* argv[]) {
-#ifdef Q_OS_WIN
-    // 中文注释：WebView2 依赖单线程 COM apartment，先在主线程完成初始化。
-    const HRESULT coResult = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    const bool shouldUninitializeCom = (coResult == S_OK || coResult == S_FALSE);
-#endif
     QApplication app(argc, argv);
     QApplication::setApplicationName("Embedded AI Reality Bridge");
     QApplication::setOrganizationName("EmbeddedAI");
@@ -69,11 +60,5 @@ int main(int argc, char* argv[]) {
     MainWindow window;
     window.showMaximized();
     splash.finish(&window);
-    const int exitCode = QApplication::exec();
-#ifdef Q_OS_WIN
-    if (shouldUninitializeCom) {
-        CoUninitialize();
-    }
-#endif
-    return exitCode;
+    return QApplication::exec();
 }

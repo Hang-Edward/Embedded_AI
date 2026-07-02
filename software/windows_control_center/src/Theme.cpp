@@ -363,8 +363,11 @@ QWidget#chatConversationCard {
     border: 1px solid rgba(190, 227, 255, 0.13);
     border-radius: 26px;
 }
+QWidget#chatConversationViewport,
+QWidget#chatConversationHost,
 QWidget#chatScroll,
-QWidget#chatConversationWebView {
+QWidget#chatScroll > QWidget,
+QWidget#chatScroll > QWidget > QWidget {
     background: transparent;
     border: none;
 }
@@ -374,7 +377,7 @@ QWidget#chatComposerCard {
     border-radius: 18px;
 }
 QTextEdit#chatComposerEdit {
-    background: rgba(16, 35, 70, 0.48);
+    background: rgba(16, 35, 70, 0.38);
     color: #eef6ff;
     border: 1px solid rgba(170, 220, 255, 0.16);
     border-radius: 16px;
@@ -384,8 +387,24 @@ QTextEdit#chatComposerEdit {
 QCheckBox#chatSceneCheck {
     color: #e4f1ff;
     background: transparent;
-    spacing: 0px;
+    spacing: 8px;
     font-weight: 600;
+}
+QCheckBox#chatSceneCheck::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+    border: 1px solid rgba(184, 225, 255, 0.22);
+    background: rgba(10, 24, 52, 0.34);
+}
+QCheckBox#chatSceneCheck::indicator:hover {
+    border-color: rgba(216, 240, 255, 0.40);
+    background: rgba(26, 50, 96, 0.42);
+}
+QCheckBox#chatSceneCheck::indicator:checked {
+    border-color: rgba(132, 205, 255, 0.62);
+    background: rgba(58, 125, 232, 0.86);
+    image: url(:/assets/checkmark.svg);
 }
 QScrollArea#chatInsightScroll,
 QScrollArea#chatInsightScroll QWidget,
@@ -461,11 +480,11 @@ QLabel#cardTitle, QLabel#messageTitle {
     color: #ffffff;
 }
 QWidget#messageBubble[role="assistant"] {
-    background: rgba(9, 20, 42, 132);
+    background: rgba(9, 20, 42, 102);
     border: 1px solid rgba(182, 223, 255, 0.24);
 }
 QWidget#messageBubble[role="system"] {
-    background: rgba(8, 18, 38, 0.98);
+    background: rgba(8, 18, 38, 0.58);
     border: 1px solid rgba(170, 220, 255, 0.12);
 }
 QLabel#messageBody {
@@ -476,6 +495,14 @@ QTextBrowser#messageBody {
     background: transparent;
     border: none;
     color: #dcecff;
+}
+QTextBrowser#messageBody a {
+    color: #9fd2ff;
+    text-decoration: none;
+}
+QTextBrowser#messageBody a:hover {
+    color: #d6edff;
+    text-decoration: underline;
 }
 QTextBrowser#messageBody QScrollBar:vertical,
 QTextBrowser#messageBody QScrollBar:horizontal {
