@@ -1,7 +1,9 @@
 #pragma once
 
 #include "BasePage.h"
-#include "ConnectionState.h"
+#include "ChatSessionModels.h"
+
+#include <functional>
 
 class QLabel;
 class QListWidget;
@@ -10,7 +12,8 @@ class QTextEdit;
 class HistoryPage : public BasePage {
 public:
     explicit HistoryPage(QWidget* parent = nullptr);
-    void setRecords(const ConnectionState& state);
+    void setSessions(const QList<ArchivedChatSession>& sessions);
+    void setSessionActivatedCallback(std::function<void(const QString&)> callback);
 
 private:
     void showRecord(int row);
@@ -18,6 +21,7 @@ private:
     QListWidget* list_ = nullptr;
     QLabel* image_ = nullptr;
     QTextEdit* detail_ = nullptr;
-    QList<ConversationRecord> records_;
-    QString recordsKey_;
+    QList<ArchivedChatSession> sessions_;
+    QString sessionsKey_;
+    std::function<void(const QString&)> sessionActivatedCallback_;
 };

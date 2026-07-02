@@ -16,6 +16,7 @@
 #include <QPainter>
 #include <QPointer>
 #include <QPushButton>
+#include <QDateTime>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -31,6 +32,7 @@
 #include <QInputMethod>
 #include <QTextEdit>
 #include <QTimer>
+#include <QUuid>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <QtConcurrent>
@@ -157,6 +159,15 @@ QString conversationSnapshotPath() {
     }
     QDir().mkpath(baseDir);
     return QDir(baseDir).filePath(QStringLiteral("chat-session.json"));
+}
+
+QString conversationArchivePath() {
+    QString baseDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (baseDir.trimmed().isEmpty()) {
+        baseDir = QDir::currentPath();
+    }
+    QDir().mkpath(baseDir);
+    return QDir(baseDir).filePath(QStringLiteral("chat-history.json"));
 }
 
 QPixmap loadHeroPixmap(const QString& imagePath) {
@@ -382,8 +393,10 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerEdit_->setPlaceholderText(QStringLiteral("输入你的需求，例如：\n- 帮我总结当前画面\n- 请结合画面解释这道题\n- 根据我刚才的实验结果给出下一步建议"));
     composerEdit_->setMinimumHeight(104);
     composerEdit_->setAcceptRichText(false);
+    composerEdit_->setAcceptDrops(false);
     composerEdit_->setFrameShape(QFrame::NoFrame);
     composerEdit_->installEventFilter(this);
+    composerEdit_->viewport()->installEventFilter(this);
     composerEdit_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     composerEdit_->viewport()->setAutoFillBackground(false);
     composerEdit_->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
@@ -412,10 +425,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     clearButton_ = new QPushButton(QStringLiteral("清空会话"), composerCard);
     clearButton_->setObjectName("secondaryButton");
     QObject::connect(clearButton_, &QPushButton::clicked, this, [this]() {
-        uiMessages_.clear();
-        rebuildConversation();
-        saveConversationSnapshot();
-        updateOverviewPanels(latestState_);
+        startFreshConversation();
     });
 
     sendButton_ = new QPushButton(QStringLiteral("发送给 Agent"), composerCard);
@@ -441,26 +451,20 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     workspaceLayout->addWidget(leftWorkspace, 1);
 
     bodyLayout()->addWidget(workspaceRow, 1);
-    loadConversationSnapshot();
-    if (uiMessages_.isEmpty()) {
-        appendDemoConversation();
-    } else {
-        rebuildConversation();
-        updateStagePanel(latestState_);
-        updateOverviewPanels(latestState_);
-    }
+    loadConversationArchive();
+    startFreshConversation();
 }
 
 bool ChatPage::eventFilter(QObject* watched, QEvent* event) {
-    if (watched == composerEdit_ && event != nullptr && event->type() == QEvent::KeyPress) {
+    if ((watched == composerEdit_ || watched == composerEdit_->viewport())
+        && event != nullptr
+        && event->type() == QEvent::KeyPress) {
         auto* keyEvent = static_cast<QKeyEvent*>(event);
         const bool enterPressed =
             keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter;
         const bool shiftPressed = keyEvent->modifiers().testFlag(Qt::ShiftModifier);
-        const bool imeVisible = QGuiApplication::inputMethod() != nullptr
-            && QGuiApplication::inputMethod()->isVisible();
 
-        if (enterPressed && !shiftPressed && !imeVisible) {
+        if (enterPressed && !shiftPressed) {
             sendPrompt();
             return true;
         }
@@ -470,7 +474,6 @@ bool ChatPage::eventFilter(QObject* watched, QEvent* event) {
 }
 
 void ChatPage::appendDemoConversation() {
-    lastSessionKey_.clear();
     uiMessages_.clear();
     uiMessages_.append({QStringLiteral("system"),
                         QStringLiteral("Agent 已待命"),
@@ -478,9 +481,36 @@ void ChatPage::appendDemoConversation() {
                         QString(),
                         QString()});
     rebuildConversation();
-    saveConversationSnapshot();
     updateStagePanel(latestState_);
     updateOverviewPanels(latestState_);
+}
+
+void ChatPage::startFreshConversation() {
+    currentSessionId_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    appendDemoConversation();
+}
+
+QList<ArchivedChatSession> ChatPage::archivedSessions() const {
+    return archivedSessions_;
+}
+
+bool ChatPage::restoreArchivedSession(const QString& sessionId) {
+    for (const ArchivedChatSession& session : archivedSessions_) {
+        if (session.sessionId != sessionId) {
+            continue;
+        }
+        currentSessionId_ = session.sessionId;
+        uiMessages_ = session.messages;
+        rebuildConversation();
+        updateStagePanel(latestState_);
+        updateOverviewPanels(latestState_);
+        return true;
+    }
+    return false;
+}
+
+void ChatPage::setHistoryChangedCallback(std::function<void()> callback) {
+    historyChangedCallback_ = std::move(callback);
 }
 
 void ChatPage::setLatestSession(const ConnectionState& state) {
@@ -599,35 +629,42 @@ void ChatPage::appendUiMessage(const AgentUiMessage& message) {
 
     uiMessages_.append(normalized);
     rebuildConversation();
-    saveConversationSnapshot();
+    persistCurrentSessionToArchive();
     updateOverviewPanels(latestState_);
 }
 
-void ChatPage::saveConversationSnapshot() const {
-    QJsonArray items;
-    for (const AgentUiMessage& message : uiMessages_) {
-        if (message.rawText.trimmed().isEmpty() && message.htmlText.trimmed().isEmpty()) {
-            continue;
+void ChatPage::saveConversationArchive() const {
+    QJsonArray sessionsArray;
+    for (const ArchivedChatSession& session : archivedSessions_) {
+        QJsonArray items;
+        for (const AgentUiMessage& message : session.messages) {
+            items.append(QJsonObject {
+                {"role", message.role},
+                {"title", message.title},
+                {"rawText", message.rawText},
+                {"imagePath", message.imagePath}
+            });
         }
-        items.append(QJsonObject {
-            {"role", message.role},
-            {"title", message.title},
-            {"rawText", message.rawText},
-            {"imagePath", message.imagePath}
+        sessionsArray.append(QJsonObject {
+            {"sessionId", session.sessionId},
+            {"title", session.title},
+            {"summary", session.summary},
+            {"timestamp", session.timestamp},
+            {"messages", items}
         });
     }
 
-    QFile file(conversationSnapshotPath());
+    QFile file(conversationArchivePath());
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         return;
     }
-    file.write(QJsonDocument(items).toJson(QJsonDocument::Indented));
+    file.write(QJsonDocument(sessionsArray).toJson(QJsonDocument::Indented));
 }
 
-void ChatPage::loadConversationSnapshot() {
-    uiMessages_.clear();
+void ChatPage::loadConversationArchive() {
+    archivedSessions_.clear();
 
-    QFile file(conversationSnapshotPath());
+    QFile file(conversationArchivePath());
     if (!file.open(QIODevice::ReadOnly)) {
         return;
     }
@@ -637,20 +674,89 @@ void ChatPage::loadConversationSnapshot() {
         return;
     }
 
-    const QJsonArray items = document.array();
-    for (const QJsonValue& value : items) {
+    const QJsonArray sessionsArray = document.array();
+    for (const QJsonValue& value : sessionsArray) {
         if (!value.isObject()) {
             continue;
         }
-        const QJsonObject object = value.toObject();
-        const QString role = object.value("role").toString().trimmed();
-        const QString title = object.value("title").toString().trimmed();
-        const QString rawText = object.value("rawText").toString();
-        const QString imagePath = object.value("imagePath").toString();
-        if (role.isEmpty() || rawText.trimmed().isEmpty()) {
+        const QJsonObject sessionObject = value.toObject();
+        ArchivedChatSession session;
+        session.sessionId = sessionObject.value("sessionId").toString().trimmed();
+        session.title = sessionObject.value("title").toString().trimmed();
+        session.summary = sessionObject.value("summary").toString().trimmed();
+        session.timestamp = sessionObject.value("timestamp").toString().trimmed();
+        const QJsonArray messages = sessionObject.value("messages").toArray();
+        for (const QJsonValue& messageValue : messages) {
+            if (!messageValue.isObject()) {
+                continue;
+            }
+            const QJsonObject object = messageValue.toObject();
+            const QString role = object.value("role").toString().trimmed();
+            const QString title = object.value("title").toString().trimmed();
+            const QString rawText = object.value("rawText").toString();
+            const QString imagePath = object.value("imagePath").toString();
+            if (role.isEmpty() || rawText.trimmed().isEmpty()) {
+                continue;
+            }
+            session.messages.append({role, title, rawText, QString(), imagePath});
+        }
+        if (session.sessionId.isEmpty() || session.messages.isEmpty()) {
             continue;
         }
-        uiMessages_.append({role, title, rawText, QString(), imagePath});
+        archivedSessions_.append(session);
+    }
+}
+
+bool ChatPage::hasMeaningfulConversation() const {
+    for (const AgentUiMessage& message : uiMessages_) {
+        if (message.role == QStringLiteral("user") || message.role == QStringLiteral("assistant")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+ArchivedChatSession ChatPage::buildCurrentSessionSnapshot() const {
+    ArchivedChatSession session;
+    session.sessionId = currentSessionId_;
+    session.timestamp = QDateTime::currentDateTime().toString(Qt::ISODate);
+    session.messages = uiMessages_;
+
+    QString firstUserText;
+    QString lastAssistantText;
+    for (const AgentUiMessage& message : uiMessages_) {
+        if (firstUserText.isEmpty() && message.role == QStringLiteral("user")) {
+            firstUserText = normalizedPreviewText(message.rawText, 42);
+        }
+        if (message.role == QStringLiteral("assistant")) {
+            lastAssistantText = normalizedPreviewText(message.rawText, 88);
+        }
+    }
+
+    session.title = firstUserText.isEmpty() ? QStringLiteral("未命名对话") : firstUserText;
+    session.summary = !lastAssistantText.isEmpty()
+        ? lastAssistantText
+        : QStringLiteral("暂无 AI 回复摘要。");
+    return session;
+}
+
+void ChatPage::persistCurrentSessionToArchive() {
+    if (!hasMeaningfulConversation()) {
+        return;
+    }
+
+    const ArchivedChatSession snapshot = buildCurrentSessionSnapshot();
+    for (int index = 0; index < archivedSessions_.size(); ++index) {
+        if (archivedSessions_[index].sessionId == snapshot.sessionId) {
+            archivedSessions_.removeAt(index);
+            break;
+        }
+    }
+    archivedSessions_.prepend(snapshot);
+    saveConversationArchive();
+
+    if (historyChangedCallback_) {
+        historyChangedCallback_();
     }
 }
 

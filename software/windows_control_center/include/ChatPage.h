@@ -2,12 +2,14 @@
 
 #include "AppConfig.h"
 #include "BasePage.h"
+#include "ChatSessionModels.h"
 #include "ConnectionState.h"
 #include "MarkdownLatexRenderer.h"
 
 #include <QFutureWatcher>
 #include <QList>
 #include <QEvent>
+#include <functional>
 
 class QTextEdit;
 class QLabel;
@@ -17,14 +19,6 @@ class QTimer;
 class QVBoxLayout;
 class GlassCheckBox;
 class SmoothScrollArea;
-
-struct AgentUiMessage {
-    QString role;
-    QString title;
-    QString rawText;
-    QString htmlText;
-    QString imagePath;
-};
 
 struct AgentTurnResult {
     bool success = false;
@@ -41,6 +35,10 @@ public:
     explicit ChatPage(AppConfig& config, QWidget* parent = nullptr);
     void appendDemoConversation();
     void setLatestSession(const ConnectionState& state);
+    void startFreshConversation();
+    QList<ArchivedChatSession> archivedSessions() const;
+    bool restoreArchivedSession(const QString& sessionId);
+    void setHistoryChangedCallback(std::function<void()> callback);
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -51,8 +49,11 @@ private:
     void updateOverviewPanels(const ConnectionState& state);
     void rebuildConversation();
     void appendUiMessage(const AgentUiMessage& message);
-    void saveConversationSnapshot() const;
-    void loadConversationSnapshot();
+    void saveConversationArchive() const;
+    void loadConversationArchive();
+    void persistCurrentSessionToArchive();
+    ArchivedChatSession buildCurrentSessionSnapshot() const;
+    bool hasMeaningfulConversation() const;
     void sendPrompt();
     AgentTurnResult runAgentTurn(const QString& userPrompt,
                                  bool includeScene,
@@ -65,6 +66,7 @@ private:
     MarkdownLatexRenderer renderer_;
     ConnectionState latestState_;
     QList<AgentUiMessage> uiMessages_;
+    QList<ArchivedChatSession> archivedSessions_;
     QFutureWatcher<AgentTurnResult>* turnWatcher_ = nullptr;
     QLabel* sectionCaption_ = nullptr;
     QLabel* stageTitle_ = nullptr;
@@ -85,4 +87,6 @@ private:
     QTimer* thinkingTimer_ = nullptr;
     int thinkingFrame_ = 0;
     QString lastSessionKey_;
+    QString currentSessionId_;
+    std::function<void()> historyChangedCallback_;
 };

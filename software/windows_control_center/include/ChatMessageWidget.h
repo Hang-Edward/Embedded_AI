@@ -32,4 +32,5 @@ private:
     QTextBrowser* body_ = nullptr;
     QLabel* image_ = nullptr;
     QWidget* bubble_ = nullptr;
+    bool useBubbleBackground_ = true;
 };

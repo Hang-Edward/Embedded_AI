@@ -325,6 +325,17 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     stack_->addWidget(cameraPage_);
     stack_->addWidget(logsPage_);
     stack_->addWidget(settingsPage_);
+    historyPage_->setSessionActivatedCallback([this](const QString& sessionId) {
+        if (chatPage_ != nullptr && chatPage_->restoreArchivedSession(sessionId)) {
+            switchPage(QStringLiteral("chat"));
+        }
+    });
+    chatPage_->setHistoryChangedCallback([this]() {
+        if (historyPage_ != nullptr && chatPage_ != nullptr) {
+            historyPage_->setSessions(chatPage_->archivedSessions());
+        }
+    });
+    historyPage_->setSessions(chatPage_->archivedSessions());
     surfaceLayout->addWidget(stack_);
 
     statusSurface_ = new GlassSurface(GlassSurface::Tone::Elevated, central_);
@@ -607,7 +618,6 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
     cameraPage_->setImagePath(state.localFramePath);
     if (state.sshOnline) {
         chatPage_->setLatestSession(state);
-        historyPage_->setRecords(state);
         if (watchLive_ && !liveTimer_->isActive()) {
             liveTimer_->start();
         }

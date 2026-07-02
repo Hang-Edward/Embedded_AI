@@ -61,14 +61,18 @@ private:
 
 class DarkMessageBubble final : public QWidget {
 public:
-    explicit DarkMessageBubble(QWidget* parent = nullptr)
-        : QWidget(parent) {
+    explicit DarkMessageBubble(bool paintedBackground, QWidget* parent = nullptr)
+        : QWidget(parent)
+        , paintedBackground_(paintedBackground) {
         setAttribute(Qt::WA_TranslucentBackground, true);
     }
 
 protected:
     void paintEvent(QPaintEvent* event) override {
         Q_UNUSED(event)
+        if (!paintedBackground_) {
+            return;
+        }
         QPainter painter(this);
         painter.setRenderHint(QPainter::Antialiasing, true);
         const QRectF bounds = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
@@ -79,6 +83,9 @@ protected:
         painter.setPen(QPen(QColor(170, 220, 255, 58), 1.0));
         painter.drawPath(shape);
     }
+
+private:
+    bool paintedBackground_ = true;
 };
 
 QPixmap loadPixmapFromFile(const QString& imagePath, QString* error) {
@@ -155,14 +162,18 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     avatar_->setObjectName("avatar");
     avatar_->setProperty("role", roleKey);
 
-    bubble_ = new DarkMessageBubble(this);
+    useBubbleBackground_ = (role == Role::User);
+    bubble_ = new DarkMessageBubble(useBubbleBackground_, this);
     bubble_->setObjectName("messageBubble");
     bubble_->setProperty("role", roleKey);
     bubble_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    bubble_->setMinimumWidth(260);
+    bubble_->setMinimumWidth(role == Role::User ? 260 : 0);
     auto* bubbleLayout = new QVBoxLayout(bubble_);
-    bubbleLayout->setContentsMargins(18, 16, 18, 16);
-    bubbleLayout->setSpacing(10);
+    bubbleLayout->setContentsMargins(useBubbleBackground_ ? 18 : 0,
+                                     useBubbleBackground_ ? 16 : 0,
+                                     useBubbleBackground_ ? 18 : 0,
+                                     useBubbleBackground_ ? 16 : 0);
+    bubbleLayout->setSpacing(useBubbleBackground_ ? 10 : 8);
 
     title_ = new QLabel(this);
     title_->setObjectName("messageTitle");
@@ -181,15 +192,18 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
 
     // 中文注释：用户消息靠右；AI / 系统消息采用“左侧身份 + 中置大气泡”的布局，
     // 右侧补一个与头像区等宽的留白，避免视觉上只占左半边。
+    if (role != Role::User) {
+        title_->hide();
+    }
+
     if (role == Role::User) {
         root->addSpacing(mirroredInsetWidth_);
         root->addStretch(1);
         root->addWidget(bubble_, 1, Qt::AlignTop);
         root->addWidget(avatar_, 0, Qt::AlignTop);
     } else {
-        root->addWidget(avatar_, 0, Qt::AlignTop);
+        avatar_->hide();
         root->addWidget(bubble_, 1, Qt::AlignTop);
-        root->addSpacing(mirroredInsetWidth_);
     }
 
     updateBubbleWidth();
@@ -197,6 +211,7 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
 
 void ChatMessageWidget::setMessage(const QString& title, const QString& body, const QString& imagePath) {
     title_->setText(title);
+    title_->setVisible(role_ == Role::User && !title.trimmed().isEmpty());
     body_->setPlainText(body);
     image_->setPixmap(QPixmap());
     image_->clear();
@@ -216,6 +231,7 @@ void ChatMessageWidget::setMessage(const QString& title, const QString& body, co
 
 void ChatMessageWidget::setRichMessage(const QString& title, const QString& htmlBody, const QString& imagePath) {
     title_->setText(title);
+    title_->setVisible(role_ == Role::User && !title.trimmed().isEmpty());
     body_->setHtml(htmlBody);
     image_->setPixmap(QPixmap());
     image_->clear();
@@ -243,9 +259,9 @@ void ChatMessageWidget::updateBubbleWidth() {
         return;
     }
 
-    const int reserved = mirroredInsetWidth_ + 46;
+    const int reserved = role_ == Role::User ? mirroredInsetWidth_ + 46 : 24;
     const int available = qMax(320, width() - reserved);
-    const qreal ratio = role_ == Role::User ? 0.72 : 0.90;
+    const qreal ratio = role_ == Role::User ? 0.72 : 0.96;
     const int maxWidth = qBound(260, static_cast<int>(available * ratio), 1280);
     bubble_->setMaximumWidth(maxWidth);
     bubble_->updateGeometry();
