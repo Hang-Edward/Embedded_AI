@@ -7,11 +7,13 @@
 
 #include <QFutureWatcher>
 #include <QList>
+#include <QEvent>
 
 class QTextEdit;
 class QLabel;
 class QWidget;
 class QPushButton;
+class QTimer;
 class QVBoxLayout;
 class GlassCheckBox;
 class SmoothScrollArea;
@@ -40,18 +42,24 @@ public:
     void appendDemoConversation();
     void setLatestSession(const ConnectionState& state);
 
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private:
     void clearMessages();
     void updateStagePanel(const ConnectionState& state);
     void updateOverviewPanels(const ConnectionState& state);
     void rebuildConversation();
     void appendUiMessage(const AgentUiMessage& message);
+    void saveConversationSnapshot() const;
+    void loadConversationSnapshot();
     void sendPrompt();
     AgentTurnResult runAgentTurn(const QString& userPrompt,
                                  bool includeScene,
                                  const ConnectionState& stateSnapshot,
                                  const QList<AgentUiMessage>& historySnapshot) const;
     void setChatBusy(bool busy, const QString& hint);
+    void updateThinkingIndicator();
 
     AppConfig& config_;
     MarkdownLatexRenderer renderer_;
@@ -74,5 +82,7 @@ private:
     QPushButton* sendButton_ = nullptr;
     QPushButton* clearButton_ = nullptr;
     GlassCheckBox* includeSceneCheck_ = nullptr;
+    QTimer* thinkingTimer_ = nullptr;
+    int thinkingFrame_ = 0;
     QString lastSessionKey_;
 };

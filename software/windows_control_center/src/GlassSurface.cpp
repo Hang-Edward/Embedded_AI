@@ -357,6 +357,10 @@ BackgroundWidget::BackgroundWidget(QWidget* parent)
     animationTimer_->start();
 }
 
+void BackgroundWidget::renderSceneInto(QPainter& painter, const QRect& targetRect, const QPoint& sourceTopLeft) const {
+    paintScene(painter, targetRect, QPointF(sourceTopLeft));
+}
+
 void BackgroundWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     rebuildWallpaperCache();
@@ -517,11 +521,12 @@ void BackgroundWidget::createClickParticles(const QPointF& position) {
     }
 }
 
-void BackgroundWidget::paintEvent(QPaintEvent* event) {
-    Q_UNUSED(event)
-    QPainter painter(this);
+void BackgroundWidget::paintScene(QPainter& painter, const QRect& targetRect, const QPointF& sourceTopLeft) const {
+    painter.save();
+    painter.setClipRect(targetRect);
+    painter.translate(targetRect.topLeft() - sourceTopLeft);
     painter.setRenderHint(QPainter::Antialiasing, false);
-    painter.fillRect(rect(), QColor(3, 8, 22));
+    painter.fillRect(QRectF(sourceTopLeft.x(), sourceTopLeft.y(), targetRect.width(), targetRect.height()), QColor(3, 8, 22));
 
     if (!scaledWallpaper_.isNull()) {
         const QPoint origin((width() - scaledWallpaper_.width()) / 2,
@@ -589,6 +594,13 @@ void BackgroundWidget::paintEvent(QPaintEvent* event) {
         painter.drawEllipse(particle.position, qMax<qreal>(1.2, particle.size * 0.42),
                             qMax<qreal>(1.2, particle.size * 0.42));
     }
+    painter.restore();
+}
+
+void BackgroundWidget::paintEvent(QPaintEvent* event) {
+    Q_UNUSED(event)
+    QPainter painter(this);
+    paintScene(painter, rect(), QPointF(0.0, 0.0));
 }
 
 GlassSurface::GlassSurface(Tone tone, QWidget* parent)

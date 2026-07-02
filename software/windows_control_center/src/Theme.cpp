@@ -359,52 +359,43 @@ QWidget#chatVisualCard {
     border-radius: 20px;
 }
 QWidget#chatConversationCard {
-    background: rgba(22, 46, 90, 0.10);
+    background: rgba(22, 46, 90, 0.05);
     border: 1px solid rgba(190, 227, 255, 0.13);
     border-radius: 26px;
 }
 QWidget#chatConversationViewport,
 QWidget#chatConversationHost,
-QWidget#chatScroll,
-QWidget#chatScroll > QWidget,
-QWidget#chatScroll > QWidget > QWidget {
+QScrollArea#chatScroll,
+QScrollArea#chatScroll > QWidget,
+QScrollArea#chatScroll::viewport {
     background: transparent;
     border: none;
 }
 QWidget#chatComposerCard {
-    background: rgba(20, 42, 82, 0.30);
+    background: rgba(20, 42, 82, 0.12);
     border: 1px solid rgba(168, 214, 255, 0.13);
     border-radius: 18px;
 }
 QTextEdit#chatComposerEdit {
-    background: rgba(16, 35, 70, 0.38);
+    background: rgba(16, 35, 70, 0.12);
     color: #eef6ff;
     border: 1px solid rgba(170, 220, 255, 0.16);
     border-radius: 16px;
     padding: 14px 16px;
     selection-background-color: rgba(83, 160, 255, 165);
 }
+QTextEdit#chatComposerEdit[busy="true"] {
+    background: rgba(14, 28, 56, 0.16);
+}
+QTextEdit#chatComposerEdit::viewport {
+    background: transparent;
+    border: none;
+}
 QCheckBox#chatSceneCheck {
     color: #e4f1ff;
     background: transparent;
     spacing: 8px;
     font-weight: 600;
-}
-QCheckBox#chatSceneCheck::indicator {
-    width: 18px;
-    height: 18px;
-    border-radius: 6px;
-    border: 1px solid rgba(184, 225, 255, 0.22);
-    background: rgba(10, 24, 52, 0.34);
-}
-QCheckBox#chatSceneCheck::indicator:hover {
-    border-color: rgba(216, 240, 255, 0.40);
-    background: rgba(26, 50, 96, 0.42);
-}
-QCheckBox#chatSceneCheck::indicator:checked {
-    border-color: rgba(132, 205, 255, 0.62);
-    background: rgba(58, 125, 232, 0.86);
-    image: url(:/assets/checkmark.svg);
 }
 QScrollArea#chatInsightScroll,
 QScrollArea#chatInsightScroll QWidget,
@@ -480,11 +471,11 @@ QLabel#cardTitle, QLabel#messageTitle {
     color: #ffffff;
 }
 QWidget#messageBubble[role="assistant"] {
-    background: rgba(9, 20, 42, 102);
+    background: rgba(9, 20, 42, 76);
     border: 1px solid rgba(182, 223, 255, 0.24);
 }
 QWidget#messageBubble[role="system"] {
-    background: rgba(8, 18, 38, 0.58);
+    background: rgba(8, 18, 38, 0.30);
     border: 1px solid rgba(170, 220, 255, 0.12);
 }
 QLabel#messageBody {
@@ -575,19 +566,11 @@ QScrollArea#chatScroll {
 QScrollArea#chatScroll::viewport {
     background: transparent;
 }
-QScrollArea#chatScroll > QWidget > QWidget {
-    background: transparent;
-}
 QScrollArea#settingsScroll,
 QScrollArea#settingsScroll::viewport,
 QWidget#settingsContent {
     background: transparent;
     border: none;
-}
-QScrollArea#chatScroll QWidget,
-QScrollArea#chatScroll QAbstractScrollArea,
-QScrollArea#chatScroll QAbstractScrollArea::viewport {
-    background: transparent;
 }
 QScrollBar:vertical {
     background: rgba(4, 12, 29, 105);

@@ -11,13 +11,24 @@
 #include <QHBoxLayout>
 #include <QImageReader>
 #include <QLabel>
+#include <QLinearGradient>
+#include <QPalette>
+#include <QPainter>
 #include <QPointer>
 #include <QPushButton>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <QPixmap>
 #include <QScrollBar>
 #include <QSizePolicy>
+#include <QStandardPaths>
 #include <QStyle>
+#include <QKeyEvent>
+#include <QGuiApplication>
+#include <QInputMethod>
 #include <QTextEdit>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -25,6 +36,52 @@
 #include <QtConcurrent>
 
 namespace {
+
+BackgroundWidget* locateBackgroundWidget(const QWidget* origin) {
+    QWidget* current = origin != nullptr ? origin->window() : nullptr;
+    while (current != nullptr) {
+        if (QWidget* candidate = current->findChild<QWidget*>(QStringLiteral("central"))) {
+            if (auto* background = dynamic_cast<BackgroundWidget*>(candidate)) {
+                return background;
+            }
+        }
+        if (auto* background = dynamic_cast<BackgroundWidget*>(current)) {
+            return background;
+        }
+        current = current->parentWidget();
+    }
+    return nullptr;
+}
+
+class ConversationHostWidget final : public QWidget {
+public:
+    explicit ConversationHostWidget(QWidget* parent = nullptr)
+        : QWidget(parent) {
+        setAttribute(Qt::WA_TranslucentBackground, true);
+        setAttribute(Qt::WA_NoSystemBackground, true);
+        setAutoFillBackground(false);
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override {
+        Q_UNUSED(event)
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        if (auto* background = locateBackgroundWidget(this)) {
+            background->renderSceneInto(painter, rect(), mapTo(background, QPoint(0, 0)));
+        } else {
+            painter.fillRect(rect(), QColor(18, 40, 82, 36));
+        }
+
+        const QRectF overlay = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+        QLinearGradient wash(overlay.topLeft(), overlay.bottomRight());
+        wash.setColorAt(0.0, QColor(22, 48, 92, 52));
+        wash.setColorAt(0.52, QColor(18, 42, 82, 34));
+        wash.setColorAt(1.0, QColor(14, 34, 72, 58));
+        painter.fillRect(rect(), wash);
+    }
+};
 
 QString stageTitleText(const ConnectionState& state) {
     switch (state.assistantStatus) {
@@ -91,6 +148,15 @@ QString normalizedPreviewText(QString text, int maxLength) {
         text = text.left(maxLength).trimmed() + QStringLiteral("...");
     }
     return text;
+}
+
+QString conversationSnapshotPath() {
+    QString baseDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (baseDir.trimmed().isEmpty()) {
+        baseDir = QDir::currentPath();
+    }
+    QDir().mkpath(baseDir);
+    return QDir(baseDir).filePath(QStringLiteral("chat-session.json"));
 }
 
 QPixmap loadHeroPixmap(const QString& imagePath) {
@@ -193,6 +259,11 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     }
 
     turnWatcher_ = new QFutureWatcher<AgentTurnResult>(this);
+    thinkingTimer_ = new QTimer(this);
+    thinkingTimer_->setInterval(120);
+    QObject::connect(thinkingTimer_, &QTimer::timeout, this, [this]() {
+        updateThinkingIndicator();
+    });
     QObject::connect(turnWatcher_, &QFutureWatcher<AgentTurnResult>::finished, this, [this]() {
         const AgentTurnResult result = turnWatcher_->result();
         if (!result.success) {
@@ -205,20 +276,12 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
             return;
         }
 
-        if (!result.visionSummary.trimmed().isEmpty()) {
-            appendUiMessage({QStringLiteral("system"),
-                             QStringLiteral("视觉观察（Qwen）"),
-                             result.visionSummary,
-                             result.visionSummary.toHtmlEscaped().replace("\n", "<br/>"),
-                             result.userImagePath});
-        }
-
         appendUiMessage({QStringLiteral("assistant"),
                          QStringLiteral("Agent 回复（DeepSeek）"),
                          result.assistantMarkdown,
                          result.assistantHtml,
                          QString()});
-        setChatBusy(false, QStringLiteral("本轮回复已完成，可以继续追问或切换画面。"));
+        setChatBusy(false, QStringLiteral("本轮回复已完成，可以继续追问。"));
     });
 
     auto* workspaceRow = new QWidget(this);
@@ -293,12 +356,12 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationScroll_->viewport()->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     conversationScroll_->setMinimumHeight(650);
 
-    conversationHost_ = new QWidget(conversationScroll_);
+    conversationHost_ = new ConversationHostWidget(conversationScroll_);
     conversationHost_->setObjectName("chatConversationHost");
     conversationHost_->setAttribute(Qt::WA_TranslucentBackground, true);
     conversationHost_->setAutoFillBackground(false);
     conversationHost_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
-    conversationHost_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Maximum);
+    conversationHost_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     conversationMessagesLayout_ = new QVBoxLayout(conversationHost_);
     conversationMessagesLayout_->setContentsMargins(0, 0, 0, 0);
@@ -318,6 +381,19 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerEdit_->setObjectName("chatComposerEdit");
     composerEdit_->setPlaceholderText(QStringLiteral("输入你的需求，例如：\n- 帮我总结当前画面\n- 请结合画面解释这道题\n- 根据我刚才的实验结果给出下一步建议"));
     composerEdit_->setMinimumHeight(104);
+    composerEdit_->setAcceptRichText(false);
+    composerEdit_->setFrameShape(QFrame::NoFrame);
+    composerEdit_->installEventFilter(this);
+    composerEdit_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    composerEdit_->viewport()->setAutoFillBackground(false);
+    composerEdit_->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
+    composerEdit_->viewport()->setAttribute(Qt::WA_NoSystemBackground, true);
+    composerEdit_->viewport()->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    QPalette composerPalette = composerEdit_->palette();
+    composerPalette.setColor(QPalette::Text, QColor(QStringLiteral("#eef6ff")));
+    composerPalette.setColor(QPalette::Base, QColor(0, 0, 0, 0));
+    composerPalette.setColor(QPalette::PlaceholderText, QColor(QStringLiteral("#8fa8c9")));
+    composerEdit_->setPalette(composerPalette);
 
     auto* composerActions = new QHBoxLayout();
     composerActions->setContentsMargins(0, 0, 0, 0);
@@ -325,6 +401,8 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
 
     includeSceneCheck_ = new GlassCheckBox(QStringLiteral("结合当前画面"), composerCard);
     includeSceneCheck_->setObjectName("chatSceneCheck");
+    includeSceneCheck_->setMinimumWidth(includeSceneCheck_->sizeHint().width() + 10);
+    includeSceneCheck_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     includeSceneCheck_->setChecked(config_.chatIncludeCurrentScene);
     QObject::connect(includeSceneCheck_, &QCheckBox::toggled, this, [this](bool checked) {
         config_.chatIncludeCurrentScene = checked;
@@ -336,6 +414,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     QObject::connect(clearButton_, &QPushButton::clicked, this, [this]() {
         uiMessages_.clear();
         rebuildConversation();
+        saveConversationSnapshot();
         updateOverviewPanels(latestState_);
     });
 
@@ -362,7 +441,32 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     workspaceLayout->addWidget(leftWorkspace, 1);
 
     bodyLayout()->addWidget(workspaceRow, 1);
-    appendDemoConversation();
+    loadConversationSnapshot();
+    if (uiMessages_.isEmpty()) {
+        appendDemoConversation();
+    } else {
+        rebuildConversation();
+        updateStagePanel(latestState_);
+        updateOverviewPanels(latestState_);
+    }
+}
+
+bool ChatPage::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == composerEdit_ && event != nullptr && event->type() == QEvent::KeyPress) {
+        auto* keyEvent = static_cast<QKeyEvent*>(event);
+        const bool enterPressed =
+            keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter;
+        const bool shiftPressed = keyEvent->modifiers().testFlag(Qt::ShiftModifier);
+        const bool imeVisible = QGuiApplication::inputMethod() != nullptr
+            && QGuiApplication::inputMethod()->isVisible();
+
+        if (enterPressed && !shiftPressed && !imeVisible) {
+            sendPrompt();
+            return true;
+        }
+    }
+
+    return BasePage::eventFilter(watched, event);
 }
 
 void ChatPage::appendDemoConversation() {
@@ -374,6 +478,7 @@ void ChatPage::appendDemoConversation() {
                         QString(),
                         QString()});
     rebuildConversation();
+    saveConversationSnapshot();
     updateStagePanel(latestState_);
     updateOverviewPanels(latestState_);
 }
@@ -454,11 +559,18 @@ void ChatPage::rebuildConversation() {
 
         auto* widget = new ChatMessageWidget(role, conversationHost_);
         widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        widget->setRichMessage(message.title,
-                               message.htmlText.isEmpty()
-                                   ? message.rawText.toHtmlEscaped().replace("\n", "<br/>")
-                                   : message.htmlText,
-                               message.imagePath);
+        QString htmlBody = message.htmlText;
+        if (htmlBody.isEmpty()) {
+            if (message.role == QStringLiteral("assistant")) {
+                // 中文注释：恢复本地会话时，助手消息也要重新走 Markdown 渲染，
+                // 否则标题、列表、代码块会退化成原始的 ## / ``` 纯文本。
+                htmlBody = renderer_.renderToHtml(message.rawText);
+            } else {
+                htmlBody = message.rawText.toHtmlEscaped().replace("\n", "<br/>");
+            }
+        }
+
+        widget->setRichMessage(message.title, htmlBody, message.imagePath);
         conversationMessagesLayout_->addWidget(widget, 0, Qt::AlignTop);
     }
 
@@ -487,7 +599,59 @@ void ChatPage::appendUiMessage(const AgentUiMessage& message) {
 
     uiMessages_.append(normalized);
     rebuildConversation();
+    saveConversationSnapshot();
     updateOverviewPanels(latestState_);
+}
+
+void ChatPage::saveConversationSnapshot() const {
+    QJsonArray items;
+    for (const AgentUiMessage& message : uiMessages_) {
+        if (message.rawText.trimmed().isEmpty() && message.htmlText.trimmed().isEmpty()) {
+            continue;
+        }
+        items.append(QJsonObject {
+            {"role", message.role},
+            {"title", message.title},
+            {"rawText", message.rawText},
+            {"imagePath", message.imagePath}
+        });
+    }
+
+    QFile file(conversationSnapshotPath());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        return;
+    }
+    file.write(QJsonDocument(items).toJson(QJsonDocument::Indented));
+}
+
+void ChatPage::loadConversationSnapshot() {
+    uiMessages_.clear();
+
+    QFile file(conversationSnapshotPath());
+    if (!file.open(QIODevice::ReadOnly)) {
+        return;
+    }
+
+    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
+    if (!document.isArray()) {
+        return;
+    }
+
+    const QJsonArray items = document.array();
+    for (const QJsonValue& value : items) {
+        if (!value.isObject()) {
+            continue;
+        }
+        const QJsonObject object = value.toObject();
+        const QString role = object.value("role").toString().trimmed();
+        const QString title = object.value("title").toString().trimmed();
+        const QString rawText = object.value("rawText").toString();
+        const QString imagePath = object.value("imagePath").toString();
+        if (role.isEmpty() || rawText.trimmed().isEmpty()) {
+            continue;
+        }
+        uiMessages_.append({role, title, rawText, QString(), imagePath});
+    }
 }
 
 void ChatPage::sendPrompt() {
@@ -520,24 +684,8 @@ void ChatPage::sendPrompt() {
                      QString(),
                      imagePath});
 
-    if (includeScene) {
-        appendUiMessage({QStringLiteral("system"),
-                         QStringLiteral("任务已接收"),
-                         QStringLiteral("已进入多模态流程：先读取当前画面，再交给 DeepSeek 做最终推理。"),
-                         QString(),
-                         QString()});
-    } else {
-        appendUiMessage({QStringLiteral("system"),
-                         QStringLiteral("任务已接收"),
-                         QStringLiteral("已进入纯文本流程：直接调用 DeepSeek 生成最终回答。"),
-                         QString(),
-                         QString()});
-    }
-
     composerEdit_->clear();
-    setChatBusy(true, includeScene
-        ? QStringLiteral("正在先调用 Qwen 识别当前画面，再交给 DeepSeek 生成最终回答...")
-        : QStringLiteral("正在调用 DeepSeek 生成最终回答..."));
+    setChatBusy(true, QStringLiteral("深度思考中"));
 
     const ConnectionState stateSnapshot = latestState_;
     const QList<AgentUiMessage> historySnapshot = uiMessages_;
@@ -600,7 +748,9 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
 void ChatPage::setChatBusy(bool busy, const QString& hint) {
     if (sendButton_ != nullptr) {
         sendButton_->setEnabled(!busy);
-        sendButton_->setText(busy ? QStringLiteral("Agent 思考中...") : QStringLiteral("发送给 Agent"));
+        if (!busy) {
+            sendButton_->setText(QStringLiteral("发送给 Agent"));
+        }
     }
     if (clearButton_ != nullptr) {
         clearButton_->setEnabled(!busy);
@@ -608,9 +758,35 @@ void ChatPage::setChatBusy(bool busy, const QString& hint) {
     if (composerEdit_ != nullptr) {
         composerEdit_->setEnabled(!busy);
     }
+    if (thinkingTimer_ != nullptr) {
+        if (busy) {
+            thinkingFrame_ = 0;
+            thinkingTimer_->start();
+            updateThinkingIndicator();
+        } else {
+            thinkingTimer_->stop();
+            thinkingFrame_ = 0;
+        }
+    }
     if (!hint.trimmed().isEmpty()) {
         setAnimatedLabelText(stageStatus_, hint, false, 220);
     } else {
         setAnimatedLabelText(stageStatus_, stageStatusText(latestState_), false, 220);
     }
+}
+
+void ChatPage::updateThinkingIndicator() {
+    if (sendButton_ == nullptr || thinkingTimer_ == nullptr || !thinkingTimer_->isActive()) {
+        return;
+    }
+    static const QStringList frames {
+        QStringLiteral("◜"),
+        QStringLiteral("◠"),
+        QStringLiteral("◝"),
+        QStringLiteral("◞"),
+        QStringLiteral("◡"),
+        QStringLiteral("◟")
+    };
+    sendButton_->setText(QStringLiteral("深度思考中 %1").arg(frames[thinkingFrame_ % frames.size()]));
+    ++thinkingFrame_;
 }

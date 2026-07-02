@@ -13,6 +13,52 @@
 #include <QVBoxLayout>
 
 namespace {
+class AvatarBadge final : public QLabel {
+public:
+    explicit AvatarBadge(const QString& text, const QString& roleKey, QWidget* parent = nullptr)
+        : QLabel(text, parent)
+        , roleKey_(roleKey) {
+        setFixedSize(36, 36);
+        setAlignment(Qt::AlignCenter);
+        setAttribute(Qt::WA_TranslucentBackground, true);
+    }
+
+protected:
+    void paintEvent(QPaintEvent* event) override {
+        Q_UNUSED(event)
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+
+        QColor fill(75, 150, 255, 118);
+        QColor border(218, 240, 255, 88);
+        QColor textColor(Qt::white);
+
+        if (roleKey_ == QStringLiteral("assistant")) {
+            fill = QColor(103, 126, 255, 96);
+            border = QColor(211, 223, 255, 76);
+        } else if (roleKey_ == QStringLiteral("system")) {
+            fill = QColor(105, 125, 154, 72);
+            border = QColor(210, 224, 240, 62);
+            textColor = QColor(217, 230, 243);
+        }
+
+        const QRectF bounds = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
+        painter.setBrush(fill);
+        painter.setPen(QPen(border, 1.0));
+        painter.drawEllipse(bounds);
+
+        painter.setPen(textColor);
+        QFont font = painter.font();
+        font.setBold(true);
+        font.setPointSize(roleKey_ == QStringLiteral("system") ? 9 : 10);
+        painter.setFont(font);
+        painter.drawText(rect(), Qt::AlignCenter, text());
+    }
+
+private:
+    QString roleKey_;
+};
+
 class DarkMessageBubble final : public QWidget {
 public:
     explicit DarkMessageBubble(QWidget* parent = nullptr)
@@ -29,7 +75,7 @@ protected:
         QPainterPath shape;
         shape.addRoundedRect(bounds, 16.0, 16.0);
         // 中文注释：色值对齐原始日志框，让气泡保持半透明深蓝，而不是过度压暗。
-        painter.fillPath(shape, QColor(8, 18, 38, 118));
+        painter.fillPath(shape, QColor(8, 18, 38, 92));
         painter.setPen(QPen(QColor(170, 220, 255, 58), 1.0));
         painter.drawPath(shape);
     }
@@ -59,7 +105,14 @@ public:
         setReadOnly(true);
         setObjectName("messageBody");
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        setAttribute(Qt::WA_TranslucentBackground, true);
+        setAttribute(Qt::WA_NoSystemBackground, true);
+        setAutoFillBackground(false);
         setStyleSheet("background: transparent; border: none;");
+        viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
+        viewport()->setAttribute(Qt::WA_NoSystemBackground, true);
+        viewport()->setAutoFillBackground(false);
+        viewport()->setStyleSheet("background: transparent; border: none;");
         document()->setDocumentMargin(0);
         QObject::connect(document(), &QTextDocument::contentsChanged, this, [this]() {
             updateHeight();
@@ -94,11 +147,13 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(10);
 
-    avatar_ = new QLabel(role == Role::User ? "我" : role == Role::Assistant ? "AI" : "系统", this);
+    avatar_ = new AvatarBadge(role == Role::User ? QStringLiteral("我")
+                                                 : role == Role::Assistant ? QStringLiteral("AI")
+                                                                           : QStringLiteral("系统"),
+                              roleKey,
+                              this);
     avatar_->setObjectName("avatar");
     avatar_->setProperty("role", roleKey);
-    avatar_->setFixedSize(36, 36);
-    avatar_->setAlignment(Qt::AlignCenter);
 
     bubble_ = new DarkMessageBubble(this);
     bubble_->setObjectName("messageBubble");
@@ -124,15 +179,17 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     bubbleLayout->addWidget(body_);
     bubbleLayout->addWidget(image_);
 
-    // 中文注释：用户消息采用右侧出气泡的常见聊天布局，AI / 系统消息保持左侧。
+    // 中文注释：用户消息靠右；AI / 系统消息采用“左侧身份 + 中置大气泡”的布局，
+    // 右侧补一个与头像区等宽的留白，避免视觉上只占左半边。
     if (role == Role::User) {
+        root->addSpacing(mirroredInsetWidth_);
         root->addStretch(1);
         root->addWidget(bubble_, 1, Qt::AlignTop);
         root->addWidget(avatar_, 0, Qt::AlignTop);
     } else {
         root->addWidget(avatar_, 0, Qt::AlignTop);
         root->addWidget(bubble_, 1, Qt::AlignTop);
-        root->addStretch(1);
+        root->addSpacing(mirroredInsetWidth_);
     }
 
     updateBubbleWidth();
@@ -186,9 +243,10 @@ void ChatMessageWidget::updateBubbleWidth() {
         return;
     }
 
-    const int available = qMax(320, width());
-    const qreal ratio = role_ == Role::User ? 0.72 : 0.94;
-    const int maxWidth = qBound(260, static_cast<int>(available * ratio), 1200);
+    const int reserved = mirroredInsetWidth_ + 46;
+    const int available = qMax(320, width() - reserved);
+    const qreal ratio = role_ == Role::User ? 0.72 : 0.90;
+    const int maxWidth = qBound(260, static_cast<int>(available * ratio), 1280);
     bubble_->setMaximumWidth(maxWidth);
     bubble_->updateGeometry();
 }

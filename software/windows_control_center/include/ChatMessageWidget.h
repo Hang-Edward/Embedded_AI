@@ -26,6 +26,7 @@ private:
     void updateBubbleWidth();
 
     Role role_ = Role::System;
+    int mirroredInsetWidth_ = 46;
     QLabel* avatar_ = nullptr;
     QLabel* title_ = nullptr;
     QTextBrowser* body_ = nullptr;

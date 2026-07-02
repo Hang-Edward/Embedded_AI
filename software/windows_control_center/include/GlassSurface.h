@@ -63,6 +63,7 @@ protected:
 class BackgroundWidget final : public QWidget {
 public:
     explicit BackgroundWidget(QWidget* parent = nullptr);
+    void renderSceneInto(QPainter& painter, const QRect& targetRect, const QPoint& sourceTopLeft) const;
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -70,6 +71,7 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
+    void paintScene(QPainter& painter, const QRect& targetRect, const QPointF& sourceTopLeft) const;
     struct Meteor {
         QPointF position;
         qreal speed = 0.0;

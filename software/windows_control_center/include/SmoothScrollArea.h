@@ -4,6 +4,7 @@
 
 class QPropertyAnimation;
 class QWheelEvent;
+class QScrollBar;
 
 class SmoothScrollArea : public QScrollArea {
 public:
@@ -13,5 +14,6 @@ protected:
     void wheelEvent(QWheelEvent* event) override;
 
 private:
+    int animationBaseValue() const;
     QPropertyAnimation* scrollAnimation_ = nullptr;
 };
