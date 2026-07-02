@@ -74,6 +74,26 @@ QString defaultSystemPrompt() {
         "如果用户在问解题、分析、规划、调试，你要像一个真正的 agent 一样先理解，再回答。");
 }
 
+QList<ChatCompletionMessage> compactHistory(const QList<ChatCompletionMessage>& messages) {
+    QList<ChatCompletionMessage> compacted;
+    int totalChars = 0;
+    constexpr int kMaxMessages = 10;
+    constexpr int kMaxChars = 9000;
+
+    for (int index = messages.size() - 1; index >= 0; --index) {
+        const ChatCompletionMessage& item = messages[index];
+        const int itemChars = item.content.size();
+        if (!compacted.isEmpty()
+            && (compacted.size() >= kMaxMessages || totalChars + itemChars > kMaxChars)) {
+            break;
+        }
+        compacted.prepend(item);
+        totalChars += itemChars;
+    }
+
+    return compacted;
+}
+
 } // namespace
 
 DeepSeekChatClient::DeepSeekChatClient(const AppConfig& config)
@@ -101,7 +121,8 @@ ChatCompletionResult DeepSeekChatClient::complete(const QList<ChatCompletionMess
         });
     }
 
-    for (const ChatCompletionMessage& item : messages) {
+    const QList<ChatCompletionMessage> compactedMessages = compactHistory(messages);
+    for (const ChatCompletionMessage& item : compactedMessages) {
         jsonMessages.append(QJsonObject {
             {"role", item.role},
             {"content", item.content}
@@ -111,7 +132,9 @@ ChatCompletionResult DeepSeekChatClient::complete(const QList<ChatCompletionMess
     QJsonObject root {
         {"model", config_.deepSeekModel},
         {"messages", jsonMessages},
-        {"stream", false}
+        {"stream", false},
+        {"temperature", 0.35},
+        {"max_tokens", 1800}
     };
     return postChat(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }

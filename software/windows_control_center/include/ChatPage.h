@@ -11,7 +11,7 @@
 #include <QEvent>
 #include <functional>
 
-class QTextEdit;
+class QPlainTextEdit;
 class QLabel;
 class QWidget;
 class QPushButton;
@@ -80,7 +80,7 @@ private:
     SmoothScrollArea* conversationScroll_ = nullptr;
     QWidget* conversationHost_ = nullptr;
     QVBoxLayout* conversationMessagesLayout_ = nullptr;
-    QTextEdit* composerEdit_ = nullptr;
+    QPlainTextEdit* composerEdit_ = nullptr;
     QPushButton* sendButton_ = nullptr;
     QPushButton* clearButton_ = nullptr;
     GlassCheckBox* includeSceneCheck_ = nullptr;

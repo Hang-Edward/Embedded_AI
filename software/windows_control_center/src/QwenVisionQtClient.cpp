@@ -5,6 +5,8 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QBuffer>
+#include <QImage>
 #include <QImageReader>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -190,18 +192,35 @@ VisionRecognitionResult QwenVisionQtClient::postRecognition(const QByteArray& re
 }
 
 QString QwenVisionQtClient::buildImageDataUrl(const QString& imagePath) const {
-    QFile file(imagePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        return {};
-    }
-    const QByteArray bytes = file.readAll();
-    if (bytes.isEmpty()) {
+    QImageReader reader(imagePath);
+    reader.setAutoTransform(true);
+    const QImage original = reader.read();
+    if (original.isNull()) {
         return {};
     }
 
-    QImageReader reader(imagePath);
-    const QByteArray format = reader.format().toLower();
-    const QString mime = format == "png" ? "image/png" : "image/jpeg";
+    // 中文注释：视觉识别前先把图片压到适中的边长和质量，明显减少 base64 体积，
+    // 对“结合当前画面”的首包延迟帮助很大。
+    QImage prepared = original;
+    constexpr int kMaxEdge = 960;
+    if (prepared.width() > kMaxEdge || prepared.height() > kMaxEdge) {
+        prepared = prepared.scaled(kMaxEdge,
+                                   kMaxEdge,
+                                   Qt::KeepAspectRatio,
+                                   Qt::SmoothTransformation);
+    }
+
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    if (!buffer.open(QIODevice::WriteOnly)) {
+        return {};
+    }
+    if (!prepared.save(&buffer, "JPEG", 76)) {
+        return {};
+    }
+    if (bytes.isEmpty()) {
+        return {};
+    }
     return QStringLiteral("data:%1;base64,%2")
-        .arg(mime, QString::fromLatin1(bytes.toBase64()));
+        .arg(QStringLiteral("image/jpeg"), QString::fromLatin1(bytes.toBase64()));
 }

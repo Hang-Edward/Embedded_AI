@@ -31,6 +31,7 @@
 #include <QGuiApplication>
 #include <QInputMethod>
 #include <QTextEdit>
+#include <QPlainTextEdit>
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -388,23 +389,32 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerLayout->setContentsMargins(14, 14, 14, 14);
     composerLayout->setSpacing(8);
 
-    composerEdit_ = new QTextEdit(composerCard);
+    composerEdit_ = new QPlainTextEdit(composerCard);
     composerEdit_->setObjectName("chatComposerEdit");
     composerEdit_->setPlaceholderText(QStringLiteral("输入你的需求，例如：\n- 帮我总结当前画面\n- 请结合画面解释这道题\n- 根据我刚才的实验结果给出下一步建议"));
     composerEdit_->setMinimumHeight(104);
-    composerEdit_->setAcceptRichText(false);
     composerEdit_->setAcceptDrops(false);
     composerEdit_->setFrameShape(QFrame::NoFrame);
     composerEdit_->installEventFilter(this);
     composerEdit_->viewport()->installEventFilter(this);
-    composerEdit_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
-    composerEdit_->viewport()->setAutoFillBackground(false);
-    composerEdit_->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
-    composerEdit_->viewport()->setAttribute(Qt::WA_NoSystemBackground, true);
-    composerEdit_->viewport()->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
+    composerEdit_->setStyleSheet(QStringLiteral(
+        "QPlainTextEdit {"
+        "background: rgba(7, 16, 36, 0.54);"
+        "border: 1px solid rgba(170, 220, 255, 0.10);"
+        "border-radius: 14px;"
+        "padding: 10px 12px;"
+        "selection-background-color: rgba(108, 164, 255, 0.34);"
+        "}"
+        "QPlainTextEdit:focus {"
+        "border: 1px solid rgba(170, 220, 255, 0.20);"
+        "background: rgba(7, 18, 38, 0.62);"
+        "}"));
+    composerEdit_->viewport()->setAutoFillBackground(true);
+    composerEdit_->viewport()->setAttribute(Qt::WA_TranslucentBackground, false);
+    composerEdit_->viewport()->setAttribute(Qt::WA_NoSystemBackground, false);
     QPalette composerPalette = composerEdit_->palette();
     composerPalette.setColor(QPalette::Text, QColor(QStringLiteral("#eef6ff")));
-    composerPalette.setColor(QPalette::Base, QColor(0, 0, 0, 0));
+    composerPalette.setColor(QPalette::Base, QColor(10, 20, 44, 180));
     composerPalette.setColor(QPalette::PlaceholderText, QColor(QStringLiteral("#8fa8c9")));
     composerEdit_->setPalette(composerPalette);
 
@@ -464,7 +474,7 @@ bool ChatPage::eventFilter(QObject* watched, QEvent* event) {
             keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter;
         const bool shiftPressed = keyEvent->modifiers().testFlag(Qt::ShiftModifier);
 
-        if (enterPressed && !shiftPressed) {
+        if (enterPressed && !shiftPressed && !keyEvent->isAutoRepeat()) {
             sendPrompt();
             return true;
         }
