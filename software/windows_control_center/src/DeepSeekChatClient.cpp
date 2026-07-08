@@ -1,5 +1,7 @@
 #include "DeepSeekChatClient.h"
 
+#include "ApiResponseParser.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QEventLoop>
@@ -175,26 +177,6 @@ ChatCompletionResult DeepSeekChatClient::postChat(const QByteArray& requestBody)
         : reply->errorString();
     reply->deleteLater();
 
-    const QJsonDocument json = QJsonDocument::fromJson(body);
-    if (!json.isObject()) {
-        return {false, {}, networkError.isEmpty() ? QStringLiteral("DeepSeek 返回了无法解析的响应。") : networkError};
-    }
-
-    const QJsonObject root = json.object();
-    if (root.contains("error")) {
-        const QJsonObject errorObject = root.value("error").toObject();
-        return {false, {}, errorObject.value("message").toString(QStringLiteral("DeepSeek 返回错误。"))};
-    }
-
-    const QJsonArray choices = root.value("choices").toArray();
-    if (choices.isEmpty()) {
-        return {false, {}, QStringLiteral("DeepSeek 响应里没有 choices。")};
-    }
-
-    const QJsonObject message = choices.first().toObject().value("message").toObject();
-    const QString content = message.value("content").toString().trimmed();
-    if (content.isEmpty()) {
-        return {false, {}, QStringLiteral("DeepSeek 响应里没有有效内容。")};
-    }
-    return {true, content, QStringLiteral("DeepSeek 回复成功。")};
+    const ParsedApiResponse parsed = ApiResponseParser::parseDeepSeek(body, networkError);
+    return {parsed.success, parsed.content, parsed.message};
 }

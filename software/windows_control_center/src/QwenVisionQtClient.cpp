@@ -1,5 +1,7 @@
 #include "QwenVisionQtClient.h"
 
+#include "ApiResponseParser.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QEventLoop>
@@ -154,41 +156,11 @@ VisionRecognitionResult QwenVisionQtClient::postRecognition(const QByteArray& re
         : reply->errorString();
     reply->deleteLater();
 
-    const QJsonDocument json = QJsonDocument::fromJson(body);
-    if (!json.isObject()) {
-        return {false, {}, networkError.isEmpty() ? QStringLiteral("Qwen 视觉返回了无法解析的响应。") : networkError};
+    const ParsedApiResponse parsed = ApiResponseParser::parseQwen(body, networkError);
+    if (!parsed.success && parsed.message.contains(QStringLiteral("没有有效内容"))) {
+        return {false, {}, QStringLiteral("%1 图像：%2").arg(parsed.message, imagePath)};
     }
-
-    const QJsonObject root = json.object();
-    if (root.contains("error")) {
-        const QJsonObject errorObject = root.value("error").toObject();
-        return {false, {}, errorObject.value("message").toString(QStringLiteral("Qwen 视觉返回错误。"))};
-    }
-
-    const QJsonArray choices = root.value("choices").toArray();
-    if (choices.isEmpty()) {
-        return {false, {}, QStringLiteral("Qwen 视觉响应里没有 choices。")};
-    }
-
-    const QJsonObject message = choices.first().toObject().value("message").toObject();
-    const QString content = message.value("content").toString().trimmed();
-    if (!content.isEmpty()) {
-        return {true, content, QStringLiteral("Qwen 视觉识别成功。")};
-    }
-
-    const QJsonArray contentArray = message.value("content").toArray();
-    QStringList textParts;
-    for (const QJsonValue& value : contentArray) {
-        const QJsonObject object = value.toObject();
-        if (object.value("type").toString() == "text") {
-            textParts << object.value("text").toString();
-        }
-    }
-    const QString merged = textParts.join("\n").trimmed();
-    if (merged.isEmpty()) {
-        return {false, {}, QStringLiteral("Qwen 视觉没有返回有效文本。图像：%1").arg(imagePath)};
-    }
-    return {true, merged, QStringLiteral("Qwen 视觉识别成功。")};
+    return {parsed.success, parsed.content, parsed.message};
 }
 
 QString QwenVisionQtClient::buildImageDataUrl(const QString& imagePath) const {

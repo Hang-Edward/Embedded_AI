@@ -27,6 +27,7 @@ struct AgentTurnResult {
     QString visionSummary;
     QString assistantMarkdown;
     QString assistantHtml;
+    QString warningText;
     QString errorText;
 };
 

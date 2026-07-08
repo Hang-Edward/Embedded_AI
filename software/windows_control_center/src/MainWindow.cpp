@@ -309,7 +309,7 @@ void MainWindow::buildPages(QVBoxLayout* rightSide) {
     stack_->setObjectName(QStringLiteral("pageStack"));
     chatPage_ = new ChatPage(config_, stack_);
     historyPage_ = new HistoryPage(stack_);
-    hardwarePage_ = new HardwarePage(stack_);
+    hardwarePage_ = new HardwarePage(config_, stack_);
     cameraPage_ = new CameraPage(stack_);
     logsPage_ = new LogsPage(stack_);
     settingsPage_ = new SettingsPage(config_, stack_);

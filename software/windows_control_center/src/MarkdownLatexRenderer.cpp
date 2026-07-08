@@ -145,6 +145,9 @@ QString MarkdownLatexRenderer::renderFormulaToImageHtml(const QString& latex, bo
 }
 
 QString MarkdownLatexRenderer::downloadFormulaPng(const QString& latex, bool blockMode) const {
+    if (qEnvironmentVariableIntValue("EMBEDDED_AI_OFFLINE_LATEX") != 0) {
+        return {};
+    }
     const QString hashSource = QStringLiteral("latex-style-v3|%1%2")
         .arg(blockMode ? QStringLiteral("block:") : QStringLiteral("inline:"),
              latex);

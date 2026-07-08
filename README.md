@@ -56,15 +56,14 @@ cmake --build build-pi
 Qt 6 + C++ + Widgets + QSS
 ```
 
-第一版目标：
+当前能力：
 
 - 主窗口和页面切换。
-- LLM 风格对话页面。
-- 硬件状态检测页面。
-- 摄像头预览页面。
-- 日志页面。
-- SSH 连接设置页面。
-- 假数据 UI，可在接入真 SSH 前先验证界面和响应式布局。
+- DeepSeek 连续对话与 Qwen 视觉上下文工作流。
+- SSH 真日志、真图片和实时硬件状态。
+- 一键完整检查与 JSON/文本验收报告。
+- 会话保存、恢复和历史继续对话。
+- Qt Test + CTest 核心自动化测试。
 
 连接策略：
 
@@ -119,9 +118,13 @@ config/qwen-vision.key
 - 审计日志文件读写和按记录 ID 更新。
 - 树莓派开机自启动按钮助手服务。
 
-## 后续路线
+## 自动化测试
 
-1. 完成 Qt Windows 展示应用第一版。
-2. 用 SSH 接入树莓派真日志、真图片和真硬件状态。
-3. 接入 Gravity IO、OLED、外接按钮、蜂鸣器和震动模块。
-4. 打包 Windows 安装包或可双击启动目录。
+```powershell
+cmake -S . -B build-qt -G Ninja -DBUILD_TESTING=ON
+cmake --build build-qt
+ctest --test-dir build-qt --output-on-failure
+```
+
+当前覆盖 Markdown/LaTeX/代码块/表格、发送快捷键、会话文件、API 响应和异常、
+Qwen 到 DeepSeek 的编排与视觉失败回退，以及 SSH/硬件探针和验收报告序列化。

@@ -1,6 +1,9 @@
 #include "ChatPage.h"
 
 #include "ChatMessageWidget.h"
+#include "ChatInputPolicy.h"
+#include "ChatSessionStore.h"
+#include "AgentWorkflowPolicy.h"
 #include "DeepSeekChatClient.h"
 #include "GlassSurface.h"
 #include "MarkdownLatexRenderer.h"
@@ -288,6 +291,14 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
             return;
         }
 
+        if (!result.warningText.trimmed().isEmpty()) {
+            appendUiMessage({QStringLiteral("system"),
+                             QStringLiteral("视觉回退"),
+                             result.warningText,
+                             QString(),
+                             QString()});
+        }
+
         appendUiMessage({QStringLiteral("assistant"),
                          QStringLiteral("Agent 回复（DeepSeek）"),
                          result.assistantMarkdown,
@@ -470,11 +481,9 @@ bool ChatPage::eventFilter(QObject* watched, QEvent* event) {
         && event != nullptr
         && event->type() == QEvent::KeyPress) {
         auto* keyEvent = static_cast<QKeyEvent*>(event);
-        const bool enterPressed =
-            keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter;
-        const bool shiftPressed = keyEvent->modifiers().testFlag(Qt::ShiftModifier);
-
-        if (enterPressed && !shiftPressed && !keyEvent->isAutoRepeat()) {
+        if (ChatInputPolicy::shouldSubmit(keyEvent->key(),
+                                          keyEvent->modifiers(),
+                                          keyEvent->isAutoRepeat())) {
             sendPrompt();
             return true;
         }
@@ -644,77 +653,13 @@ void ChatPage::appendUiMessage(const AgentUiMessage& message) {
 }
 
 void ChatPage::saveConversationArchive() const {
-    QJsonArray sessionsArray;
-    for (const ArchivedChatSession& session : archivedSessions_) {
-        QJsonArray items;
-        for (const AgentUiMessage& message : session.messages) {
-            items.append(QJsonObject {
-                {"role", message.role},
-                {"title", message.title},
-                {"rawText", message.rawText},
-                {"imagePath", message.imagePath}
-            });
-        }
-        sessionsArray.append(QJsonObject {
-            {"sessionId", session.sessionId},
-            {"title", session.title},
-            {"summary", session.summary},
-            {"timestamp", session.timestamp},
-            {"messages", items}
-        });
-    }
-
-    QFile file(conversationArchivePath());
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        return;
-    }
-    file.write(QJsonDocument(sessionsArray).toJson(QJsonDocument::Indented));
+    QString error;
+    ChatSessionStore::save(conversationArchivePath(), archivedSessions_, &error);
 }
 
 void ChatPage::loadConversationArchive() {
-    archivedSessions_.clear();
-
-    QFile file(conversationArchivePath());
-    if (!file.open(QIODevice::ReadOnly)) {
-        return;
-    }
-
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll());
-    if (!document.isArray()) {
-        return;
-    }
-
-    const QJsonArray sessionsArray = document.array();
-    for (const QJsonValue& value : sessionsArray) {
-        if (!value.isObject()) {
-            continue;
-        }
-        const QJsonObject sessionObject = value.toObject();
-        ArchivedChatSession session;
-        session.sessionId = sessionObject.value("sessionId").toString().trimmed();
-        session.title = sessionObject.value("title").toString().trimmed();
-        session.summary = sessionObject.value("summary").toString().trimmed();
-        session.timestamp = sessionObject.value("timestamp").toString().trimmed();
-        const QJsonArray messages = sessionObject.value("messages").toArray();
-        for (const QJsonValue& messageValue : messages) {
-            if (!messageValue.isObject()) {
-                continue;
-            }
-            const QJsonObject object = messageValue.toObject();
-            const QString role = object.value("role").toString().trimmed();
-            const QString title = object.value("title").toString().trimmed();
-            const QString rawText = object.value("rawText").toString();
-            const QString imagePath = object.value("imagePath").toString();
-            if (role.isEmpty() || rawText.trimmed().isEmpty()) {
-                continue;
-            }
-            session.messages.append({role, title, rawText, QString(), imagePath});
-        }
-        if (session.sessionId.isEmpty() || session.messages.isEmpty()) {
-            continue;
-        }
-        archivedSessions_.append(session);
-    }
+    QString error;
+    archivedSessions_ = ChatSessionStore::load(conversationArchivePath(), &error);
 }
 
 bool ChatPage::hasMeaningfulConversation() const {
@@ -818,25 +763,6 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
     result.userText = userPrompt;
     result.userImagePath = includeScene ? stateSnapshot.localFramePath : QString();
 
-    QString visualContext;
-    if (includeScene) {
-        if (result.userImagePath.trimmed().isEmpty()) {
-            result.success = false;
-            result.errorText = QStringLiteral("你勾选了“结合当前画面”，但当前还没有同步到最新图片，无法启动视觉识别流程。");
-            return result;
-        }
-
-        QwenVisionQtClient qwenClient(config_);
-        const VisionRecognitionResult vision = qwenClient.recognizeForPrompt(result.userImagePath, userPrompt);
-        if (!vision.success) {
-            result.success = false;
-            result.errorText = QStringLiteral("Qwen 视觉识别失败：%1").arg(vision.message);
-            return result;
-        }
-        result.visionSummary = vision.summary;
-        visualContext = vision.summary;
-    }
-
     QList<ChatCompletionMessage> history;
     for (const AgentUiMessage& item : historySnapshot) {
         if (item.role == QStringLiteral("user")) {
@@ -847,15 +773,31 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
     }
     history.append({QStringLiteral("user"), userPrompt});
 
-    DeepSeekChatClient deepSeekClient(config_);
-    const ChatCompletionResult completion = deepSeekClient.complete(history, visualContext);
-    if (!completion.success) {
+    const bool imageAvailable = includeScene
+        && !result.userImagePath.trimmed().isEmpty()
+        && QFileInfo::exists(result.userImagePath);
+    const AgentWorkflowExecution execution = AgentWorkflowPolicy::execute(
+        includeScene,
+        imageAvailable,
+        [this, imagePath = result.userImagePath, userPrompt]() {
+            QwenVisionQtClient client(config_);
+            const VisionRecognitionResult vision = client.recognizeForPrompt(imagePath, userPrompt);
+            return AgentStageResult {vision.success, vision.summary, vision.message};
+        },
+        [this, history](const QString& visualContext) {
+            DeepSeekChatClient client(config_);
+            const ChatCompletionResult completion = client.complete(history, visualContext);
+            return AgentStageResult {completion.success, completion.content, completion.message};
+        });
+    if (!execution.success) {
         result.success = false;
-        result.errorText = QStringLiteral("DeepSeek 回复失败：%1").arg(completion.message);
+        result.errorText = QStringLiteral("DeepSeek 回复失败：%1").arg(execution.errorText);
         return result;
     }
 
-    result.assistantMarkdown = completion.content;
+    result.visionSummary = execution.visionSummary;
+    result.warningText = execution.warningText;
+    result.assistantMarkdown = execution.answer;
     result.assistantHtml = QString();
     result.success = true;
     return result;

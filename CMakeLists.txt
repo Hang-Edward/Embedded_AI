@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(EmbeddedAiRealityBridge LANGUAGES CXX)
 
+include(CTest)
+
 # Hardware-side Raspberry Pi bridge and NUCLEO-facing console program.
 add_subdirectory(hardware/pi_bridge)
 
