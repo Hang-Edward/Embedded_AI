@@ -29,6 +29,11 @@ node_modules/
 Thumbs.db
 .vscode/
 .idea/
+__pycache__/
+
+# Generated document QA and working files
+/outputs/**/qa/
+/outputs/**/work/
 
 # Secrets
 .env
