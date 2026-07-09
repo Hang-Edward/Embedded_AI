@@ -116,7 +116,7 @@ bash scripts/uninstall-pi-service.sh
 
 ```bash
 cd ~/Embedded_AI
-cmake -S . -B build-pi -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF -DBUILD_LEGACY_IMGUI_GUI=OFF
+cmake -S . -B build-pi -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF
 cmake --build build-pi
 ```
 

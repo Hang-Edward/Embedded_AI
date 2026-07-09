@@ -66,7 +66,6 @@ public:
     void renderSceneInto(QPainter& painter, const QRect& targetRect, const QPoint& sourceTopLeft) const;
 
 protected:
-    bool eventFilter(QObject* watched, QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
 
@@ -79,13 +78,6 @@ private:
         qreal opacity = 0.0;
     };
 
-    struct Particle {
-        QPointF position;
-        QPointF velocity;
-        qreal life = 0.0;
-        qreal size = 0.0;
-    };
-
     struct TwinkleStar {
         QPointF normalizedPosition;
         qreal phase = 0.0;
@@ -95,7 +87,6 @@ private:
     };
 
     void advanceAnimation();
-    void createClickParticles(const QPointF& position);
     void rebuildWallpaperCache();
     void rebuildStarSprite();
     void rebuildGlowSprites();
@@ -111,7 +102,6 @@ private:
     qint64 lastFrameMs_ = 0;
     qreal meteorCooldown_ = 0.0;
     QVector<Meteor> meteors_;
-    QVector<Particle> particles_;
     QVector<TwinkleStar> stars_;
 };
 

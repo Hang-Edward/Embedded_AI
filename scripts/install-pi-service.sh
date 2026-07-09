@@ -23,7 +23,7 @@ mkdir -p "${SERVICE_DIR}" "${LOG_DIR}"
 if [[ -z "${EXECUTABLE}" ]]; then
     echo "ERROR: embedded_ai_pc_bridge executable not found." >&2
     echo "Run this first:" >&2
-    echo "  cmake -S . -B build-pi -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF -DBUILD_LEGACY_IMGUI_GUI=OFF" >&2
+    echo "  cmake -S . -B build-pi -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF" >&2
     echo "  cmake --build build-pi" >&2
     exit 1
 fi

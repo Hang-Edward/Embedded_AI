@@ -21,6 +21,28 @@
 - **NUCLEO-F446RE** 负责按键、串口协议、外设触发和本地反馈；
 - **Windows Control Center** 负责桌面演示、日志、历史记录、系统诊断和 Agent 对话体验。
 
+## Windows 端启动入口（推荐）
+
+如果你只是想直接运行桌面应用，优先使用下面两个入口：
+
+1. 直接双击：
+
+```text
+dist/windows_control_center/embedded_ai_control_center.exe
+```
+
+2. 或在仓库根目录执行：
+
+```powershell
+.\run-windows-control-center.ps1
+```
+
+其中：
+
+- `embedded_ai_control_center.exe` 是最终可分发主程序；
+- `run-windows-control-center.ps1` 会自动定位上面的可执行文件并启动；
+- 如果 `dist/windows_control_center/` 不存在，说明当前机器还没有完成 Windows 端构建，需要先执行 README 下方的构建步骤。
+
 ## 这不是“智能眼镜成品”
 
 请特别注意本项目的定位：
@@ -90,8 +112,6 @@ Embedded_AI/
 
   software/
     windows_control_center/        # Qt 6 + C++ + Widgets 桌面应用（主展示端）
-    web_preview/                   # 旧网页展示原型（保留，用于对照与文档）
-    legacy_imgui_gui/              # 旧 ImGui GUI 原型（默认不构建）
 
   scripts/                         # 构建、自启动、SSH、HUD 相关脚本
   docs/                            # 装配、演示、自启动、接线说明文档
@@ -262,7 +282,7 @@ hardware/pi_bridge
 在项目根目录执行：
 
 ```bash
-cmake -S . -B build-pi -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF -DBUILD_LEGACY_IMGUI_GUI=OFF
+cmake -S . -B build-pi -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF
 cmake --build build-pi
 ```
 
@@ -312,7 +332,7 @@ dist/windows_control_center/embedded_ai_control_center.exe
 你需要先准备好 MSYS2 UCRT64 环境，再执行类似命令：
 
 ```powershell
-cmake -S . -B build-msys2-console -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF -DBUILD_LEGACY_IMGUI_GUI=OFF
+cmake -S . -B build-msys2-console -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=OFF
 cmake --build build-msys2-console
 ```
 
@@ -321,19 +341,6 @@ cmake --build build-msys2-console
 ```powershell
 .\run-pc.ps1 COM11
 ```
-
-### 五、可选：构建旧 ImGui 原型
-
-默认不构建。
-
-如果你只是为了查看旧原型，可以手动开启：
-
-```powershell
-cmake -S . -B build-legacy -G Ninja -DBUILD_LEGACY_IMGUI_GUI=ON -DBUILD_WINDOWS_CONTROL_CENTER=OFF
-cmake --build build-legacy
-```
-
-这个原型仅作为历史保留，不是当前主展示端。
 
 ## 运行流程
 
@@ -363,7 +370,15 @@ cmake --build build-legacy
 适合答辩展示。
 
 1. 树莓派运行桥接程序或自启动服务；
-2. Windows 端启动：
+2. Windows 端启动桌面应用，推荐二选一：
+
+直接双击可执行文件：
+
+```text
+dist/windows_control_center/embedded_ai_control_center.exe
+```
+
+或者使用仓库根目录启动脚本：
 
 ```powershell
 .\run-windows-control-center.ps1
@@ -452,34 +467,6 @@ ctest --test-dir build-qt --output-on-failure
 - 会话相关导出
 - 答辩/论文插图
 
-## 旧原型说明
-
-仓库中仍保留两套旧原型：
-
-### 1. `software/web_preview`
-
-- 旧网页展示版本；
-- 主要用于早期展示和文档保留；
-- 不作为当前主线 C++ 作业代码。
-
-本地预览：
-
-```powershell
-node server.js
-```
-
-然后访问：
-
-```text
-http://127.0.0.1:8765/
-```
-
-### 2. `software/legacy_imgui_gui`
-
-- 旧 ImGui 桌面原型；
-- 默认不构建；
-- 仅作为历史代码与技术路线保留。
-
 ## 文档入口
 
 推荐阅读顺序：
@@ -513,7 +500,7 @@ http://127.0.0.1:8765/
 通常可以按需清理：
 
 - 各类 `build-*` 构建目录
-- 本地运行生成的 `imgui.ini`
+- 临时构建缓存与本地运行时缓存文件
 
 ## 项目总结
 

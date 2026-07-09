@@ -60,7 +60,7 @@ Documents/The Eye of AI/diagnostics/
 
 ```powershell
 cd "D:\VScode Projects\Embedded_AI"
-cmake -S . -B build-qt -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=ON -DBUILD_LEGACY_IMGUI_GUI=OFF -DBUILD_TESTING=ON
+cmake -S . -B build-qt -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=ON -DBUILD_TESTING=ON
 cmake --build build-qt
 ctest --test-dir build-qt --output-on-failure
 ```

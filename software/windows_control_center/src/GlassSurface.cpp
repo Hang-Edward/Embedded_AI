@@ -1,10 +1,8 @@
 #include "GlassSurface.h"
 
-#include <QApplication>
 #include <QEvent>
 #include <QGraphicsDropShadowEffect>
 #include <QLinearGradient>
-#include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QRandomGenerator>
@@ -330,7 +328,6 @@ BackgroundWidget::BackgroundWidget(QWidget* parent)
     : QWidget(parent), wallpaper_(":/assets/liquid_space_wallpaper.png") {
     setAttribute(Qt::WA_StyledBackground, false);
     setAutoFillBackground(false);
-    qApp->installEventFilter(this);
     rebuildStarSprite();
 
     // 四角星使用归一化坐标，窗口缩放后仍能均匀分布。
@@ -448,18 +445,6 @@ void BackgroundWidget::rebuildGlowSprites() {
     }
 }
 
-bool BackgroundWidget::eventFilter(QObject* watched, QEvent* event) {
-    Q_UNUSED(watched)
-    if (event->type() == QEvent::MouseButtonPress) {
-        auto* mouseEvent = static_cast<QMouseEvent*>(event);
-        const QPoint local = mapFromGlobal(mouseEvent->globalPosition().toPoint());
-        if (rect().contains(local)) {
-            createClickParticles(local);
-        }
-    }
-    return false;
-}
-
 void BackgroundWidget::advanceAnimation() {
     const qint64 nowMs = frameClock_.elapsed();
     const qint64 rawDeltaMs = nowMs - lastFrameMs_;
@@ -491,14 +476,6 @@ void BackgroundWidget::advanceAnimation() {
         return meteor.position.y() - meteor.length > height() || meteor.position.x() < -meteor.length;
     }), meteors_.end());
 
-    for (Particle& particle : particles_) {
-        particle.position += particle.velocity * step;
-        particle.velocity *= qPow(0.92, step);
-        particle.life -= 0.096 * step;
-    }
-    particles_.erase(std::remove_if(particles_.begin(), particles_.end(), [](const Particle& particle) {
-        return particle.life <= 0.0;
-    }), particles_.end());
     for (TwinkleStar& star : stars_) {
         star.phase += star.speed * step;
         if (star.phase > 6.283185307) {
@@ -506,19 +483,6 @@ void BackgroundWidget::advanceAnimation() {
         }
     }
     update();
-}
-
-void BackgroundWidget::createClickParticles(const QPointF& position) {
-    for (int i = 0; i < 34; ++i) {
-        const qreal angle = (6.283185307 * i / 34.0) + randomBetween(-0.18, 0.18);
-        const qreal speed = randomBetween(8.2, 15.1);
-        Particle particle;
-        particle.position = position;
-        particle.velocity = QPointF(qCos(angle) * speed, qSin(angle) * speed);
-        particle.life = randomBetween(0.58, 0.80);
-        particle.size = randomBetween(2.4, 5.6);
-        particles_.push_back(particle);
-    }
 }
 
 void BackgroundWidget::paintScene(QPainter& painter, const QRect& targetRect, const QPointF& sourceTopLeft) const {
@@ -581,19 +545,6 @@ void BackgroundWidget::paintScene(QPainter& painter, const QRect& targetRect, co
         painter.setOpacity(1.0);
     }
 
-    for (const Particle& particle : particles_) {
-        const int alpha = qMin(235, static_cast<int>(particle.life * 215));
-        QRadialGradient glow(particle.position, particle.size * 3.8);
-        glow.setColorAt(0.0, QColor(230, 249, 255, alpha));
-        glow.setColorAt(0.45, QColor(95, 188, 255, alpha / 2));
-        glow.setColorAt(1.0, QColor(70, 135, 255, 0));
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(glow);
-        painter.drawEllipse(particle.position, particle.size * 3.8, particle.size * 3.8);
-        painter.setBrush(QColor(222, 247, 255, qMin(245, alpha + 30)));
-        painter.drawEllipse(particle.position, qMax<qreal>(1.2, particle.size * 0.42),
-                            qMax<qreal>(1.2, particle.size * 0.42));
-    }
     painter.restore();
 }
 

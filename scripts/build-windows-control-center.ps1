@@ -39,7 +39,7 @@ Get-Process embedded_ai_control_center -ErrorAction SilentlyContinue | Stop-Proc
 
 $escapedProject = Convert-ToMsysPath $projectRoot
 
-& $msysShell -defterm -no-start -ucrt64 -c "cd '$escapedProject' && cmake -S . -B '$BuildDir' -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=ON -DBUILD_LEGACY_IMGUI_GUI=OFF && cmake --build '$BuildDir'"
+& $msysShell -defterm -no-start -ucrt64 -c "cd '$escapedProject' && cmake -S . -B '$BuildDir' -G Ninja -DBUILD_WINDOWS_CONTROL_CENTER=ON && cmake --build '$BuildDir'"
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
