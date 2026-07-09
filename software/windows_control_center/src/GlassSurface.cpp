@@ -314,14 +314,12 @@ TransparentStackedWidget::TransparentStackedWidget(QWidget* parent)
     : QStackedWidget(parent) {
     setAttribute(Qt::WA_TranslucentBackground, true);
     setAttribute(Qt::WA_OpaquePaintEvent, false);
-    setAttribute(Qt::WA_NoSystemBackground, true);
     setAttribute(Qt::WA_StaticContents, false);
     setAutoFillBackground(false);
 }
 
 void TransparentStackedWidget::paintEvent(QPaintEvent* event) {
-    Q_UNUSED(event)
-    // 中文注释：页面栈本身不绘制静态底图，直接透出父级实时流星和粒子动画。
+    QStackedWidget::paintEvent(event);
 }
 
 BackgroundWidget::BackgroundWidget(QWidget* parent)

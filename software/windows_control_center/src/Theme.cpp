@@ -376,7 +376,8 @@ QWidget#chatComposerCard {
     border: 1px solid rgba(168, 214, 255, 0.13);
     border-radius: 18px;
 }
-QTextEdit#chatComposerEdit {
+QTextEdit#chatComposerEdit,
+QPlainTextEdit#chatComposerEdit {
     background: rgba(16, 35, 70, 0.12);
     color: #eef6ff;
     border: 1px solid rgba(170, 220, 255, 0.16);
@@ -384,10 +385,12 @@ QTextEdit#chatComposerEdit {
     padding: 14px 16px;
     selection-background-color: rgba(83, 160, 255, 165);
 }
-QTextEdit#chatComposerEdit[busy="true"] {
+QTextEdit#chatComposerEdit[busy="true"],
+QPlainTextEdit#chatComposerEdit[busy="true"] {
     background: rgba(14, 28, 56, 0.16);
 }
-QTextEdit#chatComposerEdit::viewport {
+QTextEdit#chatComposerEdit::viewport,
+QPlainTextEdit#chatComposerEdit::viewport {
     background: transparent;
     border: none;
 }

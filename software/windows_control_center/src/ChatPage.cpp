@@ -65,7 +65,6 @@ public:
     explicit ConversationHostWidget(QWidget* parent = nullptr)
         : QWidget(parent) {
         setAttribute(Qt::WA_TranslucentBackground, true);
-        setAttribute(Qt::WA_NoSystemBackground, true);
         setAutoFillBackground(false);
     }
 
@@ -382,6 +381,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     conversationScroll_->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     conversationScroll_->viewport()->setAutoFillBackground(false);
     conversationScroll_->viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
+    conversationScroll_->viewport()->setAttribute(Qt::WA_NoSystemBackground, false);
     conversationScroll_->viewport()->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
     conversationScroll_->setMinimumHeight(650);
 
@@ -429,6 +429,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerEdit_->viewport()->setAutoFillBackground(true);
     composerEdit_->viewport()->setAttribute(Qt::WA_TranslucentBackground, false);
     composerEdit_->viewport()->setAttribute(Qt::WA_NoSystemBackground, false);
+    composerEdit_->viewport()->setStyleSheet(QStringLiteral("background: rgba(10, 20, 44, 0.72); border: none;"));
     QPalette composerPalette = composerEdit_->palette();
     composerPalette.setColor(QPalette::Text, QColor(QStringLiteral("#eef6ff")));
     composerPalette.setColor(QPalette::Base, QColor(10, 20, 44, 180));

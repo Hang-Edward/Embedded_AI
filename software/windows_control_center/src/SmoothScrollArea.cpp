@@ -9,14 +9,12 @@ SmoothScrollArea::SmoothScrollArea(QWidget* parent)
     : QScrollArea(parent) {
     setFrameShape(QFrame::NoFrame);
     setAttribute(Qt::WA_TranslucentBackground, true);
-    setAttribute(Qt::WA_NoSystemBackground, true);
     setAttribute(Qt::WA_OpaquePaintEvent, false);
     setAutoFillBackground(false);
     setStyleSheet(QStringLiteral("background: transparent; border: none;"));
 
     if (viewport() != nullptr) {
         viewport()->setAttribute(Qt::WA_TranslucentBackground, true);
-        viewport()->setAttribute(Qt::WA_NoSystemBackground, true);
         viewport()->setAttribute(Qt::WA_OpaquePaintEvent, false);
         viewport()->setAutoFillBackground(false);
         viewport()->setStyleSheet(QStringLiteral("background: transparent; border: none;"));
