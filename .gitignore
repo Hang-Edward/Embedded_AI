@@ -3,7 +3,9 @@
 /build-msys2*/
 /build-qt/
 /build-qt-agent/
-/dist/
+/dist/*
+!/dist/windows_control_center/
+!/dist/windows_control_center/**
 hardware/pi_bridge/build/
 hardware/firmware/**/build/
 *.elf
