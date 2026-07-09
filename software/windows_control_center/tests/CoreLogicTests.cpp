@@ -72,12 +72,15 @@ void CoreLogicTests::markdownLatexCodeAndTableRender() {
     MarkdownLatexRenderer renderer(config);
     const QString html = renderer.renderToHtml(QStringLiteral(
         "# 标题\n\n- 列表项\n\n| 列 A | 列 B |\n|---|---|\n| 1 | 2 |\n\n"
-        "```cpp\nint answer = 42;\n```\n\n行内公式 $x^2+y^2$。"));
+        "```cpp\nint answer = 42;\n```\n\n####\n行内公式 $x^2+y^2$。\n\n"
+        "$$v_1=v_2\\text{或}v_1=-v_2$$"));
     QVERIFY(html.contains(QStringLiteral("标题")));
     QVERIFY(html.contains(QStringLiteral("列表项")));
     QVERIFY(html.contains(QStringLiteral("<table"), Qt::CaseInsensitive));
     QVERIFY(html.contains(QStringLiteral("int answer = 42")));
     QVERIFY(html.contains(QStringLiteral("x^2+y^2")));
+    QVERIFY(html.contains(QStringLiteral("或")));
+    QVERIFY(!html.contains(QStringLiteral("####")));
 }
 
 void CoreLogicTests::compatibleApiResponses() {

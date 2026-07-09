@@ -83,6 +83,7 @@ if (BUILD_TESTING AND TARGET Qt6::Test)
         Qt6::Test
         Qt6::Widgets
         Qt6::Network
+        Qt6::Concurrent
     )
 
     target_compile_definitions(embedded_ai_control_center_tests PRIVATE

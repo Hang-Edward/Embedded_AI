@@ -14,6 +14,10 @@
 #include <QTextDocument>
 #include <QTimer>
 #include <QUrl>
+#include <QFuture>
+#include <QThread>
+#include <QThreadPool>
+#include <QtConcurrent>
 
 namespace {
 
@@ -21,6 +25,11 @@ struct PlaceholderItem {
     QString token;
     QString latex;
     bool blockMode = false;
+};
+
+struct PreparedFormula {
+    QString latex;
+    QString annotation;
 };
 
 QString fetchUrlToFile(const QUrl& url, const QString& outputPath) {
@@ -63,7 +72,38 @@ QString escapeHtml(const QString& text) {
 }
 
 QString placeholderToken(int index) {
-    return QStringLiteral("EMBEDDED_AI_LATEX_%1_TOKEN").arg(index);
+    return QStringLiteral("EMBEDDEDAILATEX%1TOKEN").arg(index);
+}
+
+PreparedFormula prepareFormula(QString latex) {
+    QStringList annotations;
+    const QRegularExpression textWithCjk(
+        QStringLiteral(R"(\\text\s*\{([^{}]*[\x{3400}-\x{9FFF}][^{}]*)\})"));
+    while (true) {
+        const QRegularExpressionMatch match = textWithCjk.match(latex);
+        if (!match.hasMatch()) {
+            break;
+        }
+        annotations << match.captured(1).trimmed();
+        latex.replace(match.capturedStart(0), match.capturedLength(0), QStringLiteral("\\quad "));
+    }
+
+    // CodeCogs 的数学字体不包含中文。把残余中文保留为公式后的普通文本，
+    // 避免服务端把它们渲染成 ####，同时不丢失原始说明。
+    const QRegularExpression cjkRun(QStringLiteral(R"([\x{3400}-\x{9FFF}]+)"));
+    int offset = 0;
+    while (true) {
+        const QRegularExpressionMatch match = cjkRun.match(latex, offset);
+        if (!match.hasMatch()) {
+            break;
+        }
+        annotations << match.captured(0);
+        latex.replace(match.capturedStart(0), match.capturedLength(0), QStringLiteral("\\quad "));
+        offset = match.capturedStart(0) + 6;
+    }
+    annotations.removeAll(QString());
+    annotations.removeDuplicates();
+    return {latex.trimmed(), annotations.join(QStringLiteral("；"))};
 }
 
 } // namespace
@@ -74,6 +114,9 @@ MarkdownLatexRenderer::MarkdownLatexRenderer(const AppConfig& config)
 
 QString MarkdownLatexRenderer::renderToHtml(const QString& markdownText) const {
     QString working = markdownText;
+    working.replace(QRegularExpression(QStringLiteral(R"((?m)^(#{1,6})([^#\s]))")),
+                    QStringLiteral("\\1 \\2"));
+    working.replace(QRegularExpression(QStringLiteral(R"((?m)^#{2,6}\s*$)")), QString());
     QList<PlaceholderItem> placeholders;
 
     auto extractByPattern = [&](const QRegularExpression& expression, bool blockMode) {
@@ -101,8 +144,18 @@ QString MarkdownLatexRenderer::renderToHtml(const QString& markdownText) const {
     document.setMarkdown(working);
     QString html = document.toHtml();
 
+    QList<QFuture<QString>> formulaJobs;
+    formulaJobs.reserve(placeholders.size());
+    QThreadPool formulaPool;
+    // 公式服务属于网络 I/O，有限并发可以缩短长回答排版时间，同时避免抢占 UI 和网络资源。
+    formulaPool.setMaxThreadCount(qBound(1, QThread::idealThreadCount(), 4));
     for (const PlaceholderItem& item : placeholders) {
-        html.replace(item.token, renderFormulaToImageHtml(item.latex, item.blockMode));
+        formulaJobs.append(QtConcurrent::run(&formulaPool, [this, item]() {
+            return renderFormulaToImageHtml(item.latex, item.blockMode);
+        }));
+    }
+    for (int index = 0; index < placeholders.size(); ++index) {
+        html.replace(placeholders[index].token, formulaJobs[index].result());
     }
 
     html += QStringLiteral(
@@ -119,29 +172,45 @@ QString MarkdownLatexRenderer::renderToHtml(const QString& markdownText) const {
 }
 
 QString MarkdownLatexRenderer::renderFormulaToImageHtml(const QString& latex, bool blockMode) const {
-    const QString filePath = downloadFormulaPng(latex, blockMode);
+    const PreparedFormula prepared = prepareFormula(latex);
+    const QString annotationHtml = prepared.annotation.isEmpty()
+        ? QString()
+        : QStringLiteral("<span style='color:#dcecff;font-family:\"Microsoft YaHei UI\",sans-serif;'>%1</span>")
+              .arg(escapeHtml(prepared.annotation));
+    const QString filePath = prepared.latex.isEmpty()
+        ? QString()
+        : downloadFormulaPng(prepared.latex, blockMode);
     if (QFile::exists(filePath)) {
         const QString localUrl = QUrl::fromLocalFile(filePath).toString();
         if (blockMode) {
             return QStringLiteral(
                        "<div style='text-align:center;margin:10px 0 8px 0;'>"
                        "<img src=\"%1\" style='max-width:82%%;max-height:7.2em;height:auto;display:inline-block;' />"
-                       "</div>")
-                .arg(localUrl);
+                       "</div>%2")
+                .arg(localUrl,
+                     annotationHtml.isEmpty()
+                         ? QString()
+                         : QStringLiteral("<div style='text-align:center;margin:-4px 0 10px 0;'>%1</div>")
+                               .arg(annotationHtml));
         }
         return QStringLiteral(
-                   "<img src=\"%1\" style='vertical-align:-0.12em;max-height:1.18em;width:auto;' />")
-            .arg(localUrl);
+                   "<img src=\"%1\" style='vertical-align:-0.12em;max-height:1.18em;width:auto;' />%2")
+            .arg(localUrl, annotationHtml);
     }
 
     const QString fallback = QStringLiteral(
         "<span style='font-family:Consolas,monospace;color:#f4f8ff;background:rgba(255,255,255,0.06);"
         "padding:2px 6px;border-radius:6px;'>%1</span>")
-        .arg(escapeHtml(latex));
+        .arg(escapeHtml(prepared.latex));
     if (blockMode) {
-        return QStringLiteral("<div style='text-align:center;margin:10px 0;'>%1</div>").arg(fallback);
+        return QStringLiteral("<div style='text-align:center;margin:10px 0;'>%1</div>%2")
+            .arg(prepared.latex.isEmpty() ? QString() : fallback,
+                 annotationHtml.isEmpty()
+                     ? QString()
+                     : QStringLiteral("<div style='text-align:center;margin:-4px 0 10px 0;'>%1</div>")
+                           .arg(annotationHtml));
     }
-    return fallback;
+    return (prepared.latex.isEmpty() ? QString() : fallback) + annotationHtml;
 }
 
 QString MarkdownLatexRenderer::downloadFormulaPng(const QString& latex, bool blockMode) const {

@@ -11,6 +11,7 @@
 #include "SmoothScrollArea.h"
 
 #include <QFrame>
+#include <QElapsedTimer>
 #include <QHBoxLayout>
 #include <QImageReader>
 #include <QLabel>
@@ -275,22 +276,28 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
 
     turnWatcher_ = new QFutureWatcher<AgentTurnResult>(this);
     thinkingTimer_ = new QTimer(this);
-    thinkingTimer_->setInterval(120);
+    thinkingTimer_->setInterval(250);
     QObject::connect(thinkingTimer_, &QTimer::timeout, this, [this]() {
         updateThinkingIndicator();
     });
     QObject::connect(turnWatcher_, &QFutureWatcher<AgentTurnResult>::finished, this, [this]() {
         const AgentTurnResult result = turnWatcher_->result();
+        const QString timing = QStringLiteral("总用时 %1 秒（视觉 %2 秒，DeepSeek %3 秒，排版 %4 秒）")
+                                   .arg(result.totalMs / 1000.0, 0, 'f', 1)
+                                   .arg(result.visionMs / 1000.0, 0, 'f', 1)
+                                   .arg(result.deepSeekMs / 1000.0, 0, 'f', 1)
+                                   .arg(result.renderMs / 1000.0, 0, 'f', 1);
         if (!result.success) {
+            setChatBusy(false, QStringLiteral("本轮调用失败，%1。请检查 API key、网络或图片同步状态。").arg(timing));
             appendUiMessage({QStringLiteral("system"),
                              QStringLiteral("调用失败"),
                              result.errorText,
                              QString(),
                              QString()});
-            setChatBusy(false, QStringLiteral("本轮调用失败，请检查 API key、网络或图片同步状态。"));
             return;
         }
 
+        setChatBusy(false, QStringLiteral("本轮回复已完成，%1。").arg(timing));
         if (!result.warningText.trimmed().isEmpty()) {
             appendUiMessage({QStringLiteral("system"),
                              QStringLiteral("视觉回退"),
@@ -304,7 +311,6 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
                          result.assistantMarkdown,
                          result.assistantHtml,
                          QString()});
-        setChatBusy(false, QStringLiteral("本轮回复已完成，可以继续追问。"));
     });
 
     auto* workspaceRow = new QWidget(this);
@@ -760,6 +766,8 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
                                        const ConnectionState& stateSnapshot,
                                        const QList<AgentUiMessage>& historySnapshot) const {
     AgentTurnResult result;
+    QElapsedTimer totalTimer;
+    totalTimer.start();
     result.userText = userPrompt;
     result.userImagePath = includeScene ? stateSnapshot.localFramePath : QString();
 
@@ -779,26 +787,38 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
     const AgentWorkflowExecution execution = AgentWorkflowPolicy::execute(
         includeScene,
         imageAvailable,
-        [this, imagePath = result.userImagePath, userPrompt]() {
+        [this, &result, imagePath = result.userImagePath, userPrompt]() {
+            QElapsedTimer timer;
+            timer.start();
             QwenVisionQtClient client(config_);
             const VisionRecognitionResult vision = client.recognizeForPrompt(imagePath, userPrompt);
+            result.visionMs = timer.elapsed();
             return AgentStageResult {vision.success, vision.summary, vision.message};
         },
-        [this, history](const QString& visualContext) {
+        [this, &result, history](const QString& visualContext) {
+            QElapsedTimer timer;
+            timer.start();
             DeepSeekChatClient client(config_);
             const ChatCompletionResult completion = client.complete(history, visualContext);
+            result.deepSeekMs = timer.elapsed();
             return AgentStageResult {completion.success, completion.content, completion.message};
         });
     if (!execution.success) {
         result.success = false;
         result.errorText = QStringLiteral("DeepSeek 回复失败：%1").arg(execution.errorText);
+        result.totalMs = totalTimer.elapsed();
         return result;
     }
 
     result.visionSummary = execution.visionSummary;
     result.warningText = execution.warningText;
     result.assistantMarkdown = execution.answer;
-    result.assistantHtml = QString();
+    QElapsedTimer renderTimer;
+    renderTimer.start();
+    MarkdownLatexRenderer backgroundRenderer(config_);
+    result.assistantHtml = backgroundRenderer.renderToHtml(execution.answer);
+    result.renderMs = renderTimer.elapsed();
+    result.totalMs = totalTimer.elapsed();
     result.success = true;
     return result;
 }
@@ -819,11 +839,14 @@ void ChatPage::setChatBusy(bool busy, const QString& hint) {
     if (thinkingTimer_ != nullptr) {
         if (busy) {
             thinkingFrame_ = 0;
+            thinkingElapsed_.restart();
+            showThinkingMessage();
             thinkingTimer_->start();
             updateThinkingIndicator();
         } else {
             thinkingTimer_->stop();
             thinkingFrame_ = 0;
+            removeThinkingMessage();
         }
     }
     if (!hint.trimmed().isEmpty()) {
@@ -845,6 +868,35 @@ void ChatPage::updateThinkingIndicator() {
         QStringLiteral("◡"),
         QStringLiteral("◟")
     };
-    sendButton_->setText(QStringLiteral("深度思考中 %1").arg(frames[thinkingFrame_ % frames.size()]));
+    const qint64 seconds = thinkingElapsed_.isValid() ? thinkingElapsed_.elapsed() / 1000 : 0;
+    const QString dots(3 + (thinkingFrame_ / 2) % 4, QLatin1Char('.'));
+    sendButton_->setText(QStringLiteral("处理中 %1").arg(frames[thinkingFrame_ % frames.size()]));
+    if (thinkingMessage_ != nullptr) {
+        thinkingMessage_->setMessage(QString(),
+                                     QStringLiteral("深度思考中%1 %2s").arg(dots).arg(seconds));
+    }
     ++thinkingFrame_;
+}
+
+void ChatPage::showThinkingMessage() {
+    if (thinkingMessage_ != nullptr || conversationMessagesLayout_ == nullptr) {
+        return;
+    }
+    thinkingMessage_ = new ChatMessageWidget(ChatMessageWidget::Role::Assistant, conversationHost_);
+    thinkingMessage_->setObjectName(QStringLiteral("thinkingMessage"));
+    thinkingMessage_->setMessage(QString(), QStringLiteral("深度思考中... 0s"));
+    const int insertIndex = qMax(0, conversationMessagesLayout_->count() - 1);
+    conversationMessagesLayout_->insertWidget(insertIndex, thinkingMessage_, 0, Qt::AlignTop);
+    if (conversationScroll_ != nullptr && conversationScroll_->verticalScrollBar() != nullptr) {
+        conversationScroll_->verticalScrollBar()->setValue(
+            conversationScroll_->verticalScrollBar()->maximum());
+    }
+}
+
+void ChatPage::removeThinkingMessage() {
+    if (thinkingMessage_ == nullptr) {
+        return;
+    }
+    delete thinkingMessage_.data();
+    thinkingMessage_.clear();
 }

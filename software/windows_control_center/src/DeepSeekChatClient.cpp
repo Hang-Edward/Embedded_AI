@@ -73,14 +73,16 @@ QString defaultSystemPrompt() {
         "如果给了视觉观察，那只是来自视觉模型的客观识别结果，不是最终答案。"
         "最终回答必须由你独立组织。"
         "请尽量使用清晰中文，必要时使用 Markdown、列表、公式。"
+        "LaTeX 公式内部不要放中文，中文解释请写在公式外，避免数学渲染器缺字。"
+        "除非用户明确要求长篇展开，否则优先给出紧凑、完整、可执行的回答。"
         "如果用户在问解题、分析、规划、调试，你要像一个真正的 agent 一样先理解，再回答。");
 }
 
 QList<ChatCompletionMessage> compactHistory(const QList<ChatCompletionMessage>& messages) {
     QList<ChatCompletionMessage> compacted;
     int totalChars = 0;
-    constexpr int kMaxMessages = 10;
-    constexpr int kMaxChars = 9000;
+    constexpr int kMaxMessages = 8;
+    constexpr int kMaxChars = 6500;
 
     for (int index = messages.size() - 1; index >= 0; --index) {
         const ChatCompletionMessage& item = messages[index];
@@ -136,7 +138,7 @@ ChatCompletionResult DeepSeekChatClient::complete(const QList<ChatCompletionMess
         {"messages", jsonMessages},
         {"stream", false},
         {"temperature", 0.35},
-        {"max_tokens", 1800}
+        {"max_tokens", 1200}
     };
     return postChat(QJsonDocument(root).toJson(QJsonDocument::Compact));
 }
@@ -154,6 +156,8 @@ ChatCompletionResult DeepSeekChatClient::postChat(const QByteArray& requestBody)
     QNetworkRequest request(QUrl(endpointFor(config_.deepSeekBaseUrl)));
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("Authorization", QByteArray("Bearer ") + readApiKey().toUtf8());
+    request.setAttribute(QNetworkRequest::Http2AllowedAttribute, true);
+    request.setTransferTimeout(40000);
 
     QEventLoop loop;
     QTimer timeout;

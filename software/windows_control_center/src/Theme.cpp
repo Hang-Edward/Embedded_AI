@@ -471,8 +471,12 @@ QLabel#cardTitle, QLabel#messageTitle {
     color: #ffffff;
 }
 QWidget#messageBubble[role="assistant"] {
-    background: rgba(9, 20, 42, 76);
+    background: rgba(7, 17, 38, 112);
     border: 1px solid rgba(182, 223, 255, 0.24);
+}
+QWidget#thinkingMessage QWidget#messageBubble {
+    background: rgba(7, 17, 38, 126);
+    border: 1px solid rgba(153, 205, 255, 0.22);
 }
 QWidget#messageBubble[role="system"] {
     background: rgba(8, 18, 38, 0.30);

@@ -61,16 +61,16 @@ private:
 
 class DarkMessageBubble final : public QWidget {
 public:
-    explicit DarkMessageBubble(bool paintedBackground, QWidget* parent = nullptr)
+    explicit DarkMessageBubble(const QString& roleKey, QWidget* parent = nullptr)
         : QWidget(parent)
-        , paintedBackground_(paintedBackground) {
+        , roleKey_(roleKey) {
         setAttribute(Qt::WA_TranslucentBackground, true);
     }
 
 protected:
     void paintEvent(QPaintEvent* event) override {
         Q_UNUSED(event)
-        if (!paintedBackground_) {
+        if (roleKey_ == QStringLiteral("system")) {
             return;
         }
         QPainter painter(this);
@@ -78,14 +78,19 @@ protected:
         const QRectF bounds = QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5);
         QPainterPath shape;
         shape.addRoundedRect(bounds, 16.0, 16.0);
-        // 中文注释：色值对齐原始日志框，让气泡保持半透明深蓝，而不是过度压暗。
-        painter.fillPath(shape, QColor(8, 18, 38, 92));
-        painter.setPen(QPen(QColor(170, 220, 255, 58), 1.0));
-        painter.drawPath(shape);
+        if (roleKey_ == QStringLiteral("user")) {
+            painter.fillPath(shape, QColor(8, 18, 38, 92));
+            painter.setPen(QPen(QColor(170, 220, 255, 58), 1.0));
+            painter.drawPath(shape);
+            return;
+        }
+
+        // AI 回答使用无边框的轻量阅读层：提升对比度，但不恢复成突兀的聊天气泡。
+        painter.fillPath(shape, QColor(5, 14, 31, 72));
     }
 
 private:
-    bool paintedBackground_ = true;
+    QString roleKey_;
 };
 
 QPixmap loadPixmapFromFile(const QString& imagePath, QString* error) {
@@ -162,18 +167,20 @@ ChatMessageWidget::ChatMessageWidget(Role role, QWidget* parent)
     avatar_->setObjectName("avatar");
     avatar_->setProperty("role", roleKey);
 
-    useBubbleBackground_ = (role == Role::User);
-    bubble_ = new DarkMessageBubble(useBubbleBackground_, this);
+    useBubbleBackground_ = (role != Role::System);
+    bubble_ = new DarkMessageBubble(roleKey, this);
     bubble_->setObjectName("messageBubble");
     bubble_->setProperty("role", roleKey);
     bubble_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     bubble_->setMinimumWidth(role == Role::User ? 260 : 0);
     auto* bubbleLayout = new QVBoxLayout(bubble_);
-    bubbleLayout->setContentsMargins(useBubbleBackground_ ? 18 : 0,
-                                     useBubbleBackground_ ? 16 : 0,
-                                     useBubbleBackground_ ? 18 : 0,
-                                     useBubbleBackground_ ? 16 : 0);
-    bubbleLayout->setSpacing(useBubbleBackground_ ? 10 : 8);
+    const int horizontalPadding = role == Role::User ? 18 : role == Role::Assistant ? 16 : 0;
+    const int verticalPadding = role == Role::User ? 16 : role == Role::Assistant ? 12 : 0;
+    bubbleLayout->setContentsMargins(horizontalPadding,
+                                     verticalPadding,
+                                     horizontalPadding,
+                                     verticalPadding);
+    bubbleLayout->setSpacing(role == Role::System ? 8 : 10);
 
     title_ = new QLabel(this);
     title_->setObjectName("messageTitle");

@@ -7,8 +7,10 @@
 #include "MarkdownLatexRenderer.h"
 
 #include <QFutureWatcher>
+#include <QElapsedTimer>
 #include <QList>
 #include <QEvent>
+#include <QPointer>
 #include <functional>
 
 class QPlainTextEdit;
@@ -19,6 +21,7 @@ class QTimer;
 class QVBoxLayout;
 class GlassCheckBox;
 class SmoothScrollArea;
+class ChatMessageWidget;
 
 struct AgentTurnResult {
     bool success = false;
@@ -29,6 +32,10 @@ struct AgentTurnResult {
     QString assistantHtml;
     QString warningText;
     QString errorText;
+    qint64 visionMs = 0;
+    qint64 deepSeekMs = 0;
+    qint64 renderMs = 0;
+    qint64 totalMs = 0;
 };
 
 class ChatPage : public BasePage {
@@ -62,6 +69,8 @@ private:
                                  const QList<AgentUiMessage>& historySnapshot) const;
     void setChatBusy(bool busy, const QString& hint);
     void updateThinkingIndicator();
+    void showThinkingMessage();
+    void removeThinkingMessage();
 
     AppConfig& config_;
     MarkdownLatexRenderer renderer_;
@@ -86,6 +95,8 @@ private:
     QPushButton* clearButton_ = nullptr;
     GlassCheckBox* includeSceneCheck_ = nullptr;
     QTimer* thinkingTimer_ = nullptr;
+    QElapsedTimer thinkingElapsed_;
+    QPointer<ChatMessageWidget> thinkingMessage_;
     int thinkingFrame_ = 0;
     QString lastSessionKey_;
     QString currentSessionId_;
