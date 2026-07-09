@@ -491,9 +491,9 @@ http://127.0.0.1:8765/
 5. `docs/pi-hud-wiring-guide.md`
 6. `docs/three-key-ws2812-design.md`
 
-## 当前推荐打包方式
+## 项目目录整理建议
 
-如果你要把项目打包交老师，推荐保留：
+为了保留完整、可复现、便于演示的项目内容，建议保留：
 
 - `hardware/`
 - `software/`
@@ -510,7 +510,7 @@ http://127.0.0.1:8765/
 - `run-qwen.ps1`
 - `run-windows-control-center.ps1`
 
-通常不需要保留：
+通常可以按需清理：
 
 - 各类 `build-*` 构建目录
 - 本地运行生成的 `imgui.ini`
