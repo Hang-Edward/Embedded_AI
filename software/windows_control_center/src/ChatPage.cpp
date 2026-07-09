@@ -542,6 +542,76 @@ void ChatPage::setLatestSession(const ConnectionState& state) {
     latestState_ = state;
     updateStagePanel(state);
     updateOverviewPanels(state);
+    syncExternalConversationRecords(state);
+}
+
+QString ChatPage::externalRecordKey(const ConversationRecord& record) const {
+    return QStringLiteral("%1|%2|%3|%4")
+        .arg(record.title.trimmed(),
+             record.timestamp.trimmed(),
+             record.userText.trimmed(),
+             record.aiText.trimmed());
+}
+
+void ChatPage::appendExternalConversationRecord(const ConversationRecord& record) {
+    const QString userText = summaryOrFallback(
+        record.userText.trimmed(),
+        QStringLiteral("硬件侧完成了一次现场分析。"));
+    appendUiMessage({QStringLiteral("user"),
+                     QStringLiteral("硬件触发"),
+                     userText,
+                     QString(),
+                     record.imagePath});
+
+    appendUiMessage({QStringLiteral("assistant"),
+                     QStringLiteral("Agent 回复（树莓派同步）"),
+                     record.aiText.trimmed(),
+                     QString(),
+                     QString()});
+}
+
+void ChatPage::syncExternalConversationRecords(const ConnectionState& state) {
+    if (state.recentRecords.isEmpty()) {
+        return;
+    }
+
+    const QString newestKey = externalRecordKey(state.recentRecords.first());
+    if (newestKey.trimmed().isEmpty()) {
+        return;
+    }
+
+    // 中文注释：首次连上树莓派时只建立“已见过的最新记录”基线，
+    // 避免程序刚打开就把旧日志里的历史触发全部倒灌进当前新会话。
+    if (lastSessionKey_.isEmpty()) {
+        lastSessionKey_ = newestKey;
+        return;
+    }
+
+    if (newestKey == lastSessionKey_) {
+        return;
+    }
+
+    QList<ConversationRecord> pendingRecords;
+    for (const ConversationRecord& record : state.recentRecords) {
+        const QString recordKey = externalRecordKey(record);
+        if (recordKey == lastSessionKey_) {
+            break;
+        }
+        if (!record.aiText.trimmed().isEmpty()) {
+            pendingRecords.prepend(record);
+        }
+    }
+
+    if (pendingRecords.isEmpty()) {
+        lastSessionKey_ = newestKey;
+        return;
+    }
+
+    for (const ConversationRecord& record : pendingRecords) {
+        appendExternalConversationRecord(record);
+    }
+
+    lastSessionKey_ = newestKey;
 }
 
 void ChatPage::clearMessages() {

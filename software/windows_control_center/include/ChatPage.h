@@ -52,6 +52,9 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    void syncExternalConversationRecords(const ConnectionState& state);
+    void appendExternalConversationRecord(const ConversationRecord& record);
+    QString externalRecordKey(const ConversationRecord& record) const;
     void clearMessages();
     void updateStagePanel(const ConnectionState& state);
     void updateOverviewPanels(const ConnectionState& state);
