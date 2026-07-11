@@ -5,9 +5,9 @@
 #include "ChatSessionStore.h"
 #include "AgentWorkflowPolicy.h"
 #include "DeepSeekChatClient.h"
+#include "ExternalConversationSyncPolicy.h"
 #include "GlassSurface.h"
 #include "MarkdownLatexRenderer.h"
-#include "QwenVisionQtClient.h"
 #include "SmoothScrollArea.h"
 
 #include <QFrame>
@@ -257,7 +257,7 @@ QString latestUserOverview(const QList<AgentUiMessage>& messages) {
                 QStringLiteral("等待输入。"));
         }
     }
-    return QStringLiteral("支持自由输入；勾选“结合当前画面”后，会先由 Qwen 识别图像，再交给 DeepSeek 回答。");
+    return QStringLiteral("桌面输入只发送文字；三键键盘 K-B 触发时会同步该轮现场图片和语音内容。");
 }
 
 } // namespace
@@ -408,7 +408,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
 
     composerEdit_ = new QPlainTextEdit(composerCard);
     composerEdit_->setObjectName("chatComposerEdit");
-    composerEdit_->setPlaceholderText(QStringLiteral("输入你的需求，例如：\n- 帮我总结当前画面\n- 请结合画面解释这道题\n- 根据我刚才的实验结果给出下一步建议"));
+    composerEdit_->setPlaceholderText(QStringLiteral("输入你的需求，例如：\n- 解释 C++ 多态\n- 帮我整理实验结论\n- 根据以上对话给出下一步建议"));
     composerEdit_->setMinimumHeight(104);
     composerEdit_->setAcceptDrops(false);
     composerEdit_->setFrameShape(QFrame::NoFrame);
@@ -440,16 +440,6 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
     composerActions->setContentsMargins(0, 0, 0, 0);
     composerActions->setSpacing(10);
 
-    includeSceneCheck_ = new GlassCheckBox(QStringLiteral("结合当前画面"), composerCard);
-    includeSceneCheck_->setObjectName("chatSceneCheck");
-    includeSceneCheck_->setMinimumWidth(includeSceneCheck_->sizeHint().width() + 10);
-    includeSceneCheck_->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    includeSceneCheck_->setChecked(config_.chatIncludeCurrentScene);
-    QObject::connect(includeSceneCheck_, &QCheckBox::toggled, this, [this](bool checked) {
-        config_.chatIncludeCurrentScene = checked;
-        config_.save();
-    });
-
     clearButton_ = new QPushButton(QStringLiteral("清空会话"), composerCard);
     clearButton_->setObjectName("secondaryButton");
     QObject::connect(clearButton_, &QPushButton::clicked, this, [this]() {
@@ -462,7 +452,6 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
         sendPrompt();
     });
 
-    composerActions->addWidget(includeSceneCheck_);
     composerActions->addStretch(1);
     composerActions->addWidget(clearButton_);
     composerActions->addWidget(sendButton_);
@@ -480,6 +469,7 @@ ChatPage::ChatPage(AppConfig& config, QWidget* parent)
 
     bodyLayout()->addWidget(workspaceRow, 1);
     loadConversationArchive();
+    lastSessionKey_ = config_.lastExternalConversationKey;
     startFreshConversation();
 }
 
@@ -503,7 +493,7 @@ void ChatPage::appendDemoConversation() {
     uiMessages_.clear();
     uiMessages_.append({QStringLiteral("system"),
                         QStringLiteral("Agent 已待命"),
-                        QStringLiteral("左侧输入自然语言需求，点击“发送给 Agent”后，将由 DeepSeek 负责最终回答；如果勾选“结合当前画面”，会先由 Qwen 对当前图片做客观识别，再把结果交给 DeepSeek 推理。"),
+                        QStringLiteral("桌面输入用于纯文本对话，由 DeepSeek 负责回答。按下三键键盘 K-B 时，树莓派会同步本轮语音、现场照片和 AI 回复。"),
                         QString(),
                         QString()});
     rebuildConversation();
@@ -546,14 +536,6 @@ void ChatPage::setLatestSession(const ConnectionState& state) {
     syncExternalConversationRecords(state);
 }
 
-QString ChatPage::externalRecordKey(const ConversationRecord& record) const {
-    return QStringLiteral("%1|%2|%3|%4")
-        .arg(record.title.trimmed(),
-             record.timestamp.trimmed(),
-             record.userText.trimmed(),
-             record.aiText.trimmed());
-}
-
 void ChatPage::appendExternalConversationRecord(const ConversationRecord& record) {
     const QString userText = summaryOrFallback(
         record.userText.trimmed(),
@@ -572,47 +554,25 @@ void ChatPage::appendExternalConversationRecord(const ConversationRecord& record
 }
 
 void ChatPage::syncExternalConversationRecords(const ConnectionState& state) {
-    if (state.recentRecords.isEmpty()) {
+    const ExternalConversationSyncDecision decision = ExternalConversationSyncPolicy::decide(
+        state.recentRecords,
+        lastSessionKey_,
+        hasMeaningfulConversation());
+    if (decision.newestKey.isEmpty()) {
+        return;
+    }
+    if (decision.newestKey == lastSessionKey_) {
         return;
     }
 
-    const QString newestKey = externalRecordKey(state.recentRecords.first());
-    if (newestKey.trimmed().isEmpty()) {
-        return;
-    }
-
-    // 中文注释：首次连上树莓派时只建立“已见过的最新记录”基线，
-    // 避免程序刚打开就把旧日志里的历史触发全部倒灌进当前新会话。
-    if (lastSessionKey_.isEmpty()) {
-        lastSessionKey_ = newestKey;
-        return;
-    }
-
-    if (newestKey == lastSessionKey_) {
-        return;
-    }
-
-    QList<ConversationRecord> pendingRecords;
-    for (const ConversationRecord& record : state.recentRecords) {
-        const QString recordKey = externalRecordKey(record);
-        if (recordKey == lastSessionKey_) {
-            break;
-        }
-        if (!record.aiText.trimmed().isEmpty()) {
-            pendingRecords.prepend(record);
-        }
-    }
-
-    if (pendingRecords.isEmpty()) {
-        lastSessionKey_ = newestKey;
-        return;
-    }
-
-    for (const ConversationRecord& record : pendingRecords) {
+    // 中文注释：策略会按时间顺序返回断线期间遗漏的记录，逐条追加到当前会话。
+    for (const ConversationRecord& record : decision.pendingRecords) {
         appendExternalConversationRecord(record);
     }
 
-    lastSessionKey_ = newestKey;
+    lastSessionKey_ = decision.newestKey;
+    config_.lastExternalConversationKey = decision.newestKey;
+    config_.save();
 }
 
 void ChatPage::clearMessages() {
@@ -651,7 +611,7 @@ void ChatPage::updateOverviewPanels(const ConnectionState& state) {
     if (!pixmap.isNull()) {
         visualFrame_->setPixmap(pixmap.scaled(560, 340, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         visualFrame_->setProperty("contentKey", imagePath);
-        setAnimatedLabelText(visualStatus_, QStringLiteral("最新画面已同步。勾选“结合当前画面”后，Qwen 会先读取这张图。"), false, 220);
+        setAnimatedLabelText(visualStatus_, QStringLiteral("最新画面已同步；仅在三键键盘 K-B 触发的硬件对话中附带该轮图片。"), false, 220);
     } else if (!imagePath.isEmpty()) {
         visualFrame_->setPixmap(QPixmap());
         visualFrame_->setText(QStringLiteral("图片已缓存，但当前无法显示。\n%1").arg(imagePath));
@@ -813,34 +773,33 @@ void ChatPage::sendPrompt() {
         return;
     }
 
-    const bool includeScene = includeSceneCheck_->isChecked();
-    const QString imagePath = includeScene ? latestState_.localFramePath : QString();
-
     appendUiMessage({QStringLiteral("user"),
                      QStringLiteral("我的需求"),
                      userPrompt,
                      QString(),
-                     imagePath});
+                     QString()});
 
     composerEdit_->clear();
     setChatBusy(true, QStringLiteral("深度思考中"));
 
     const ConnectionState stateSnapshot = latestState_;
     const QList<AgentUiMessage> historySnapshot = uiMessages_;
-    turnWatcher_->setFuture(QtConcurrent::run([this, userPrompt, includeScene, stateSnapshot, historySnapshot]() {
-        return runAgentTurn(userPrompt, includeScene, stateSnapshot, historySnapshot);
+    turnWatcher_->setFuture(QtConcurrent::run([this, userPrompt, stateSnapshot, historySnapshot]() {
+        return runAgentTurn(userPrompt, stateSnapshot, historySnapshot);
     }));
 }
 
 AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
-                                       bool includeScene,
                                        const ConnectionState& stateSnapshot,
                                        const QList<AgentUiMessage>& historySnapshot) const {
+    Q_UNUSED(stateSnapshot)
     AgentTurnResult result;
     QElapsedTimer totalTimer;
     totalTimer.start();
     result.userText = userPrompt;
-    result.userImagePath = includeScene ? stateSnapshot.localFramePath : QString();
+    // 中文注释：桌面手动输入固定为纯文本，不允许复用最近一次摄像头画面。
+    // 现场图片只由 appendExternalConversationRecord() 接收硬件 K-B 触发记录时附加。
+    result.userImagePath.clear();
 
     QList<ChatCompletionMessage> history;
     for (const AgentUiMessage& item : historySnapshot) {
@@ -852,20 +811,10 @@ AgentTurnResult ChatPage::runAgentTurn(const QString& userPrompt,
     }
     history.append({QStringLiteral("user"), userPrompt});
 
-    const bool imageAvailable = includeScene
-        && !result.userImagePath.trimmed().isEmpty()
-        && QFileInfo::exists(result.userImagePath);
     const AgentWorkflowExecution execution = AgentWorkflowPolicy::execute(
-        includeScene,
-        imageAvailable,
-        [this, &result, imagePath = result.userImagePath, userPrompt]() {
-            QElapsedTimer timer;
-            timer.start();
-            QwenVisionQtClient client(config_);
-            const VisionRecognitionResult vision = client.recognizeForPrompt(imagePath, userPrompt);
-            result.visionMs = timer.elapsed();
-            return AgentStageResult {vision.success, vision.summary, vision.message};
-        },
+        false,
+        false,
+        {},
         [this, &result, history](const QString& visualContext) {
             QElapsedTimer timer;
             timer.start();

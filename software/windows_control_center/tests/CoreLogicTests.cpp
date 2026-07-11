@@ -3,6 +3,7 @@
 #include "AppConfig.h"
 #include "ChatInputPolicy.h"
 #include "ChatSessionStore.h"
+#include "ExternalConversationSyncPolicy.h"
 #include "MarkdownLatexRenderer.h"
 #include "SystemSelfTest.h"
 
@@ -18,6 +19,7 @@ private Q_SLOTS:
     void enterAndShiftEnterPolicy();
     void sessionCreateSaveRestore();
     void sessionRejectsMalformedJson();
+    void externalConversationIncrementalSync();
     void markdownLatexCodeAndTableRender();
     void compatibleApiResponses();
     void apiTimeoutEmptyAndNetworkFailures();
@@ -66,6 +68,38 @@ void CoreLogicTests::sessionRejectsMalformedJson() {
     QVERIFY(error.contains(QStringLiteral("解析失败")));
 }
 
+void CoreLogicTests::externalConversationIncrementalSync() {
+    const ConversationRecord newest {
+        QStringLiteral("记录 ID 12"), QStringLiteral("ID 12"),
+        QStringLiteral("你看到了什么？"), QStringLiteral("画面中是一张实验台。"), {}, QStringLiteral("frame-12.jpg")};
+    const ConversationRecord previous {
+        QStringLiteral("记录 ID 8"), QStringLiteral("ID 8"),
+        QStringLiteral("描述当前画面"), QStringLiteral("画面中有一台显示器。"), {}, QStringLiteral("frame-8.jpg")};
+
+    const ExternalConversationSyncDecision initial = ExternalConversationSyncPolicy::decide(
+        {newest, previous}, {}, false);
+    QCOMPARE(initial.newestKey, ExternalConversationSyncPolicy::recordKey(newest));
+    QVERIFY(initial.pendingRecords.isEmpty());
+
+    const ExternalConversationSyncDecision recovered = ExternalConversationSyncPolicy::decide(
+        {newest, previous}, {}, true);
+    QCOMPARE(recovered.pendingRecords.size(), 1);
+    QCOMPARE(recovered.pendingRecords.first().title, newest.title);
+
+    const ConversationRecord next {
+        QStringLiteral("记录 ID 16"), QStringLiteral("ID 16"),
+        QStringLiteral("请读取题目"), QStringLiteral("题目要求计算矩阵特征值。"), {}, QStringLiteral("frame-16.jpg")};
+    const ExternalConversationSyncDecision incremental = ExternalConversationSyncPolicy::decide(
+        {next, newest, previous}, ExternalConversationSyncPolicy::recordKey(previous), false);
+    QCOMPARE(incremental.pendingRecords.size(), 2);
+    QCOMPARE(incremental.pendingRecords.at(0).title, newest.title);
+    QCOMPARE(incremental.pendingRecords.at(1).title, next.title);
+
+    const ExternalConversationSyncDecision unchanged = ExternalConversationSyncPolicy::decide(
+        {next, newest, previous}, ExternalConversationSyncPolicy::recordKey(next), false);
+    QVERIFY(unchanged.pendingRecords.isEmpty());
+}
+
 void CoreLogicTests::markdownLatexCodeAndTableRender() {
     qputenv("EMBEDDED_AI_OFFLINE_LATEX", "1");
     AppConfig config;
@@ -111,9 +145,25 @@ void CoreLogicTests::apiTimeoutEmptyAndNetworkFailures() {
 }
 
 void CoreLogicTests::visualWorkflowFallback() {
-    const VisionWorkflowDecision textOnly = AgentWorkflowPolicy::decideVisionStep(false, false, false);
+    // 中文注释：即使磁盘上还留有上一轮图片，纯文本请求也不能复用旧画面。
+    const VisionWorkflowDecision textOnly = AgentWorkflowPolicy::decideVisionStep(false, true, false);
     QVERIFY(!textOnly.useVisualContext);
     QVERIFY(textOnly.warningText.isEmpty());
+
+    bool visionCalled = false;
+    const AgentWorkflowExecution textOnlyExecution = AgentWorkflowPolicy::execute(
+        false,
+        true,
+        [&visionCalled]() {
+            visionCalled = true;
+            return AgentStageResult {true, QStringLiteral("不应读取的旧画面"), {}};
+        },
+        [](const QString& visualContext) {
+            return AgentStageResult {visualContext.isEmpty(), QStringLiteral("纯文本回答"), {}};
+        });
+    QVERIFY(textOnlyExecution.success);
+    QVERIFY(!visionCalled);
+    QVERIFY(textOnlyExecution.visionSummary.isEmpty());
 
     const VisionWorkflowDecision missingImage = AgentWorkflowPolicy::decideVisionStep(true, false, false);
     QVERIFY(!missingImage.useVisualContext);

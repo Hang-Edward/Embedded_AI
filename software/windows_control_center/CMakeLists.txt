@@ -32,6 +32,7 @@ add_executable(embedded_ai_control_center WIN32
     src/ChatPage.cpp
     src/ChatSessionStore.cpp
     src/DeepSeekChatClient.cpp
+    src/ExternalConversationSyncPolicy.cpp
     src/MarkdownLatexRenderer.cpp
     src/ConnectionManager.cpp
     src/ConnectionState.cpp
@@ -71,6 +72,7 @@ if (BUILD_TESTING AND TARGET Qt6::Test)
         src/ApiResponseParser.cpp
         src/ChatInputPolicy.cpp
         src/ChatSessionStore.cpp
+        src/ExternalConversationSyncPolicy.cpp
         src/MarkdownLatexRenderer.cpp
         src/SystemSelfTestReport.cpp
     )

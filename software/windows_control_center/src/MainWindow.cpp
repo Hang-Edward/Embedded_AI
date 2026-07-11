@@ -165,6 +165,9 @@ MainWindow::MainWindow(QWidget* parent)
     });
     QTimer::singleShot(160, this, [this]() {
         connection_.beginAutoConnect();
+        if (watchLive_ && !liveTimer_->isActive()) {
+            liveTimer_->start();
+        }
     });
 }
 
@@ -621,8 +624,9 @@ void MainWindow::applyConnectionState(const ConnectionState& state) {
         if (watchLive_ && !liveTimer_->isActive()) {
             liveTimer_->start();
         }
-    } else if (liveTimer_->isActive()) {
-        liveTimer_->stop();
+    } else if (watchLive_ && !liveTimer_->isActive()) {
+        // 中文注释：离线时仍保持低频轮询，网络恢复后应用可自动重新握手。
+        liveTimer_->start();
     }
 }
 

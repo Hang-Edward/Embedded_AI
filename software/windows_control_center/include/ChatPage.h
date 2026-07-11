@@ -19,7 +19,6 @@ class QWidget;
 class QPushButton;
 class QTimer;
 class QVBoxLayout;
-class GlassCheckBox;
 class SmoothScrollArea;
 class ChatMessageWidget;
 
@@ -54,7 +53,6 @@ protected:
 private:
     void syncExternalConversationRecords(const ConnectionState& state);
     void appendExternalConversationRecord(const ConversationRecord& record);
-    QString externalRecordKey(const ConversationRecord& record) const;
     void clearMessages();
     void updateStagePanel(const ConnectionState& state);
     void updateOverviewPanels(const ConnectionState& state);
@@ -67,7 +65,6 @@ private:
     bool hasMeaningfulConversation() const;
     void sendPrompt();
     AgentTurnResult runAgentTurn(const QString& userPrompt,
-                                 bool includeScene,
                                  const ConnectionState& stateSnapshot,
                                  const QList<AgentUiMessage>& historySnapshot) const;
     void setChatBusy(bool busy, const QString& hint);
@@ -96,7 +93,6 @@ private:
     QPlainTextEdit* composerEdit_ = nullptr;
     QPushButton* sendButton_ = nullptr;
     QPushButton* clearButton_ = nullptr;
-    GlassCheckBox* includeSceneCheck_ = nullptr;
     QTimer* thinkingTimer_ = nullptr;
     QElapsedTimer thinkingElapsed_;
     QPointer<ChatMessageWidget> thinkingMessage_;

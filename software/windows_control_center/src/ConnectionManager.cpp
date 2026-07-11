@@ -155,7 +155,13 @@ void ConnectionManager::reconnect() {
 
 void ConnectionManager::refreshNow() {
     if (!state_.sshOnline || state_.activeHost.isEmpty()) {
-        reconnect();
+        // 中文注释：离线轮询只在当前没有 Ping/SSH 探测时重启连接，
+        // 避免定时器每秒杀掉尚未完成的连接流程。
+        if (stage_ == ProbeStage::None
+            && process_.state() == QProcess::NotRunning
+            && !refreshWatcher_->isRunning()) {
+            reconnect();
+        }
         return;
     }
     if (refreshWatcher_->isRunning()) {
@@ -318,6 +324,7 @@ void ConnectionManager::handlePingFinished(int exitCode) {
 
 void ConnectionManager::handleSshFinished(int exitCode) {
     const QString host = candidates_.value(candidateIndex_);
+    stage_ = ProbeStage::None;
     state_.activeHost = host;
     state_.piReachable = true;
 
@@ -402,6 +409,7 @@ void ConnectionManager::applyHealthOutput(const QString& output) {
     const QString qwen = sectionValue(output, "QWEN", "NETWORK");
     const QString apiNetwork = sectionValue(output, "NETWORK", "FRAME");
     state_.logText = sectionValue(output, "LOG");
+    state_.logText.remove(QChar('\0'));
 
     const bool serviceOk = service == "active";
     const bool serialOk = !serial.isEmpty();
